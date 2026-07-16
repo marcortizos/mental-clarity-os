@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mental Clarity OS</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Clarity OS">
+<meta name="theme-color" content="#0A0812">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0A0812;
+    --surface:#130F1E;
+    --surface-2:#1A1526;
+    --border:#2A2438;
+    --border-soft:#221C30;
+    --accent:#8B7CF6;
+    --accent-dim:#4E4480;
+    --accent-glow:#B8A6FF;
+    --amber:#E0AE5E;
+    --text:#EDE9F7;
+    --text-muted:#948DAB;
+    --text-faint:#5C5670;
+    --mint:#6FDDBB;
+    --coral:#E08E5E;
+    --radius:10px;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    display:flex;
+    min-height:100vh;
+  }
+  ::selection{background:var(--accent-dim);color:#fff;}
+  a{color:var(--accent-glow);}
+
+  /* ---------- layout ---------- */
+  #sidebar{
+    width:220px;
+    flex-shrink:0;
+    background:var(--surface);
+    border-right:1px solid var(--border-soft);
+    display:flex;
+    flex-direction:column;
+    padding:22px 14px;
+    position:sticky;
+    top:0;
+    height:100vh;
+  }
+  #main{
+    flex:1;
+    min-width:0;
+    padding:40px 48px 80px;
+    max-width:920px;
+  }
+  @media (max-width:860px){
+    body{flex-direction:column;}
+    #sidebar{width:100%;height:auto;position:relative;flex-direction:row;align-items:center;overflow-x:auto;padding:14px;}
+    #sidebar .brand{margin-bottom:0;margin-right:16px;}
+    #sidebar nav{flex-direction:row;gap:4px;}
+    #sidebar .navlabel{display:none;}
+    #main{padding:24px 20px 60px;}
+  }
+
+  /* ---------- brand mark ---------- */
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:30px;padding:0 6px;}
+  .brand svg{flex-shrink:0;}
+  .brand-text{font-family:var(--font-display);font-weight:600;font-size:14.5px;letter-spacing:0.01em;line-height:1.15;}
+  .brand-text span{display:block;font-family:var(--font-body);font-weight:400;font-size:10.5px;color:var(--text-faint);letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;}
+
+  nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+  .navgroup-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-faint);padding:16px 10px 6px;font-weight:500;}
+  .navgroup-label:first-child{padding-top:4px;}
+  .navitem{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 10px;border-radius:8px;
+    color:var(--text-muted);
+    cursor:pointer;font-size:13.5px;font-weight:500;
+    transition:background .12s, color .12s;
+    border:none;background:none;width:100%;text-align:left;font-family:var(--font-body);
+  }
+  .navitem:hover{background:var(--surface-2);color:var(--text);}
+  .navitem.active{background:var(--surface-2);color:var(--text);}
+  .navitem.active .navdot{background:var(--accent);}
+  .navdot{width:5px;height:5px;border-radius:50%;background:var(--text-faint);flex-shrink:0;}
+  .navbadge{margin-left:auto;font-size:10px;background:var(--accent-dim);color:var(--accent-glow);padding:1px 6px;border-radius:20px;font-weight:600;}
+
+  .sidebar-footer{padding:10px;font-size:11px;color:var(--text-faint);line-height:1.5;border-top:1px solid var(--border-soft);margin-top:12px;padding-top:14px;}
+
+  /* ---------- headers ---------- */
+  .page-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent-glow);font-weight:600;margin-bottom:8px;}
+  .page-title{font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.01em;margin-bottom:6px;}
+  .page-sub{color:var(--text-muted);font-size:14px;margin-bottom:32px;max-width:520px;}
+  .voice{font-style:italic;color:var(--text-muted);font-family:var(--font-body);}
+
+  /* ---------- cards ---------- */
+  .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:22px 24px;}
+  .card + .card{margin-top:14px;}
+
+  /* ---------- home dashboard ---------- */
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;}
+  .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-faint);margin-bottom:8px;font-weight:500;}
+  .stat-value{font-family:var(--font-display);font-size:26px;font-weight:600;}
+  .stat-value small{font-size:13px;color:var(--text-muted);font-weight:400;font-family:var(--font-body);}
+
+  .today-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  @media (max-width:600px){.today-row{grid-template-columns:1fr;}}
+  .flow-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:20px 22px;cursor:pointer;transition:border-color .12s, transform .12s;}
+  .flow-card:hover{border-color:var(--accent-dim);}
+  .flow-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+  .flow-card-title{font-family:var(--font-display);font-weight:600;font-size:16px;}
+  .flow-status{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;letter-spacing:0.02em;}
+  .flow-status.done{background:rgba(111,221,187,0.12);color:var(--mint);}
+  .flow-status.pending{background:var(--surface-2);color:var(--text-muted);}
+  .flow-card-desc{font-size:12.5px;color:var(--text-muted);}
+
+  /* ---------- check-in flow ---------- */
+  .progress-track{position:relative;height:3px;background:var(--border-soft);border-radius:3px;margin-bottom:40px;overflow:visible;}
+  .progress-fill{position:absolute;top:0;left:0;height:100%;background:var(--accent);border-radius:3px;transition:width .35s ease;}
+  .progress-dot{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:var(--accent-glow);transform:translate(-50%,-50%);transition:left .35s ease;box-shadow:0 0 0 4px rgba(139,124,246,0.15);}
+
+  .qcounter{font-size:12px;color:var(--text-faint);font-weight:500;letter-spacing:0.04em;margin-bottom:10px;text-transform:uppercase;}
+  .qtext{font-family:var(--font-display);font-size:22px;font-weight:500;line-height:1.4;margin-bottom:22px;max-width:560px;}
+  .answer-wrap{position:relative;}
+  textarea.answer{
+    width:100%;min-height:110px;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:14px 50px 14px 16px;color:var(--text);font-family:var(--font-body);font-size:15px;
+    resize:vertical;line-height:1.55;
+  }
+  .mic-btn{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text-faint);display:none;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,color .12s,border-color .12s;}
+  .mic-btn:hover{color:var(--accent-glow);border-color:var(--accent-dim);}
+  .mic-btn.listening{background:var(--accent-dim);color:var(--accent-glow);border-color:var(--accent);animation:micpulse 1.4s ease-in-out infinite;}
+  @keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(139,124,246,0.35);}50%{box-shadow:0 0 0 6px rgba(139,124,246,0);}}
+  textarea.answer:focus{outline:none;border-color:var(--accent-dim);}
+  textarea.answer::placeholder{color:var(--text-faint);}
+
+  .btnrow{display:flex;gap:10px;margin-top:18px;align-items:center;}
+  button.primary{
+    background:var(--accent);color:#0A0812;border:none;font-weight:600;font-size:13.5px;
+    padding:10px 20px;border-radius:8px;cursor:pointer;font-family:var(--font-body);transition:opacity .12s;
+  }
+  button.primary:hover{opacity:0.88;}
+  button.primary:disabled{opacity:0.4;cursor:not-allowed;}
+  button.ghost{
+    background:none;color:var(--text-muted);border:1px solid var(--border);font-size:13.5px;font-weight:500;
+    padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--font-body);transition:all .12s;
+  }
+  button.ghost:hover{border-color:var(--border-strong,var(--text-faint));color:var(--text);}
+  button.ghost:disabled{opacity:0.4;cursor:not-allowed;}
+  .thinking{font-size:12.5px;color:var(--accent-glow);font-style:italic;display:flex;align-items:center;gap:8px;}
+  .thinking .spin{width:11px;height:11px;border-radius:50%;border:2px solid var(--accent-dim);border-top-color:var(--accent-glow);animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .refined-preview{background:var(--surface-2);border-left:2px solid var(--accent);padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;margin-top:14px;}
+  .refined-preview .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent-glow);font-weight:600;margin-bottom:4px;}
+
+  .complete-wrap{text-align:left;padding:8px 0;}
+  .complete-mark{width:44px;height:44px;border-radius:50%;background:var(--surface-2);border:1px solid var(--accent-dim);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+  .reflection-box{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;padding:18px 20px;margin:18px 0;font-style:italic;color:var(--text);font-size:14.5px;line-height:1.65;}
+  .entry-summary{margin-top:20px;}
+  .entry-row{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:13.5px;}
+  .entry-row:last-child{border-bottom:none;}
+  .entry-row .k{color:var(--text-faint);flex-shrink:0;width:150px;}
+  .entry-row .v{color:var(--text);text-align:right;}
+
+  /* ---------- locked ---------- */
+  .locked-box{text-align:center;padding:50px 20px;color:var(--text-muted);}
+  .locked-box .lock-icon{margin-bottom:16px;opacity:0.5;}
+  .locked-progress{display:flex;gap:6px;justify-content:center;margin:18px 0 6px;}
+  .locked-progress span{width:26px;height:4px;border-radius:3px;background:var(--border);}
+  .locked-progress span.filled{background:var(--accent);}
+
+  /* ---------- history table ---------- */
+  .filter-row{display:flex;gap:8px;margin-bottom:20px;}
+  .filter-btn{background:var(--surface);border:1px solid var(--border-soft);color:var(--text-muted);font-size:12.5px;font-weight:500;padding:7px 14px;border-radius:20px;cursor:pointer;font-family:var(--font-body);}
+  .filter-btn.active{background:var(--accent-dim);color:var(--accent-glow);border-color:var(--accent-dim);}
+  table.history{width:100%;border-collapse:collapse;font-size:13px;}
+  table.history th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-faint);font-weight:500;padding:0 14px 10px 0;border-bottom:1px solid var(--border-soft);}
+  table.history td{padding:12px 14px 12px 0;border-bottom:1px solid var(--border-soft);vertical-align:top;color:var(--text-muted);}
+  table.history td.date{color:var(--text);font-weight:500;white-space:nowrap;}
+  table.history tr:last-child td{border-bottom:none;}
+  .type-pill{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;}
+  .type-pill.morning{background:rgba(224,174,94,0.12);color:var(--amber);}
+  .type-pill.evening{background:rgba(139,124,246,0.15);color:var(--accent-glow);}
+  .type-pill.weekly{background:rgba(111,221,187,0.12);color:var(--mint);}
+  .type-pill.monthly{background:rgba(224,142,94,0.12);color:var(--coral);}
+  .empty-state{padding:50px 10px;text-align:center;color:var(--text-faint);font-size:13.5px;}
+
+  /* ---------- vision / rules ---------- */
+  .field-label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-faint);font-weight:500;margin-bottom:8px;margin-top:22px;}
+  .field-label:first-child{margin-top:0;}
+  input.field, textarea.field{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 13px;color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.5;
+  }
+  textarea.field{min-height:70px;resize:vertical;}
+  input.field:focus, textarea.field:focus{outline:none;border-color:var(--accent-dim);}
+  .identity-line{font-family:var(--font-display);font-size:18px;font-weight:500;color:var(--accent-glow);margin-top:6px;font-style:italic;}
+
+  .rule-group-title{font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:12px;margin-top:24px;}
+  .rule-group-title:first-child{margin-top:0;}
+  .rule-list{list-style:none;}
+  .rule-list li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:13.5px;color:var(--text-muted);}
+  .rule-list li:last-child{border-bottom:none;}
+  .rule-list li::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent-dim);margin-top:7px;flex-shrink:0;}
+
+  .standards-note{font-style:italic;color:var(--text-muted);font-size:13.5px;line-height:1.7;padding:18px 20px;background:var(--surface-2);border-radius:10px;margin-bottom:20px;}
+
+  /* ---------- notes ---------- */
+  .note-item{padding:14px 0;border-bottom:1px solid var(--border-soft);}
+  .note-item:last-child{border-bottom:none;}
+  .note-date{font-size:11px;color:var(--text-faint);margin-bottom:5px;font-weight:500;}
+  .note-text{font-size:14px;color:var(--text);white-space:pre-wrap;}
+  .note-del{background:none;border:none;color:var(--text-faint);font-size:11px;cursor:pointer;margin-top:6px;font-family:var(--font-body);}
+  .note-del:hover{color:var(--text-muted);}
+
+  /* ---------- settings ---------- */
+  .settings-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border-soft);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-label{font-size:13.5px;color:var(--text);font-weight:500;}
+  .settings-hint{font-size:12px;color:var(--text-faint);margin-top:3px;}
+  input[type=time]{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-family:var(--font-body);font-size:13px;}
+  .toggle{width:38px;height:22px;border-radius:20px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:background .15s;}
+  .toggle.on{background:var(--accent-dim);}
+  .toggle .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text-faint);transition:left .15s, background .15s;}
+  .toggle.on .knob{left:18px;background:var(--accent-glow);}
+
+  .footnote{font-size:11.5px;color:var(--text-faint);margin-top:8px;line-height:1.5;}
+
+  /* ---------- onboarding ---------- */
+  #onboardWrap{max-width:520px;margin:0 auto;padding-top:min(14vh,120px);}
+  .ob-dots{display:flex;gap:6px;margin-bottom:34px;}
+  .ob-dots span{width:22px;height:3px;border-radius:3px;background:var(--border);}
+  .ob-dots span.on{background:var(--accent);}
+  .ob-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent-glow);font-weight:600;margin-bottom:10px;}
+  .ob-title{font-family:var(--font-display);font-size:26px;font-weight:600;letter-spacing:-0.01em;margin-bottom:18px;line-height:1.25;}
+  .ob-body{font-size:15px;color:var(--text-muted);line-height:1.7;margin-bottom:34px;max-width:440px;}
+  .ob-body strong{color:var(--text);font-weight:500;}
+
+  /* ---------- then vs now ---------- */
+  .compare-head-row{display:grid;grid-template-columns:140px 1fr 1fr;gap:16px;margin-bottom:4px;}
+  .compare-head{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;padding-bottom:10px;border-bottom:1px solid var(--border-soft);}
+  .compare-head.then{color:var(--text-faint);}
+  .compare-head.now{color:var(--accent-glow);}
+  .compare-row{display:grid;grid-template-columns:140px 1fr 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--border-soft);}
+  .compare-row:last-child{border-bottom:none;}
+  .compare-label{font-size:12px;color:var(--text-faint);padding-top:2px;}
+  .compare-val{font-size:14px;line-height:1.5;color:var(--text-muted);}
+  .compare-val.now{color:var(--text);}
+  .shift-box{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;padding:18px 20px;margin-top:26px;font-style:italic;color:var(--text);font-size:14.5px;line-height:1.65;}
+
+  /* ---------- tracked checklist ---------- */
+  .tracked-list li{display:flex;align-items:center;gap:12px;}
+  .tracked-list li::before{display:none;}
+  .tracked-row:hover{color:var(--text);}
+  .tracked-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .12s, border-color .12s;}
+  .tracked-check.done{background:var(--accent);border-color:var(--accent);}
+
+  /* ---------- auth screen ---------- */
+  #authWrap{max-width:380px;margin:0 auto;padding-top:min(16vh,140px);}
+  .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:44px;}
+  .auth-title{font-family:var(--font-display);font-size:24px;font-weight:600;margin-bottom:8px;}
+  .auth-sub{color:var(--text-muted);font-size:14px;margin-bottom:30px;}
+  .auth-field-label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-faint);font-weight:500;margin-bottom:8px;margin-top:18px;}
+  .auth-field-label:first-of-type{margin-top:0;}
+  input.auth-input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:var(--text);font-family:var(--font-body);font-size:14px;}
+  input.auth-input:focus{outline:none;border-color:var(--accent-dim);}
+  .auth-error{color:#F0B8C4;font-size:12.5px;margin-top:14px;}
+  .auth-toggle{margin-top:22px;font-size:13px;color:var(--text-muted);}
+  .auth-toggle button{background:none;border:none;color:var(--accent-glow);cursor:pointer;font-family:var(--font-body);font-size:13px;padding:0;text-decoration:underline;}
+  #authBtn{width:100%;margin-top:22px;justify-content:center;display:flex;}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <path d="M3 20C7 20 8 6 13 6C17 6 15 16 19 16C21.5 16 22 12 22 12" stroke="#8B7CF6" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+      <circle cx="22" cy="12" r="2.4" fill="#B8A6FF"/>
+    </svg>
+    <div class="brand-text">Mental Clarity<span>Operating System</span></div>
+  </div>
+  <nav id="nav"></nav>
+  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.</div>
+</div>
+
+<div id="main"></div>
+
+<script>
+/* ============================= CONFIG ============================= */
+const PERSONA_PROMPT = `You are my Mental Discipline & Clarity OS.
+
+Your role:
+- Remove mental noise
+- Enforce clarity over emotion
+- Replace motivation with structure
+- Anchor my thinking in long-term direction
+
+Tone:
+- Calm
+- Direct
+- Grounded
+- No hype
+
+Rules:
+- Ask fewer questions, but sharper ones
+- If I'm vague, force precision
+- Always reduce complexity
+
+Goal:
+Turn me into a clear, disciplined, consistent operator.`;
+
+const FLOWS = {
+  morning: {
+    label:'Morning check-in', short:'Morning', color:'morning',
+    desc:'3 minutes. Set the standard before the day sets it for you.',
+    questions:[
+      {key:'clutter', label:'Mental clutter', q:'What mental clutter am I carrying into today?'},
+      {key:'mustDo', label:'Must-do today', q:'What must be done today regardless of mood?'},
+      {key:'priority', label:'Top priority', q:'What is the single priority that moves my life forward?'},
+      {key:'standard', label:'Standard today', q:'What standard am I holding myself to today?'},
+      {key:'intention', label:'Intention', q:"Summarize today's intention in one clear sentence."}
+    ]
+  },
+  evening: {
+    label:'Evening review', short:'Evening', color:'evening',
+    desc:'3 minutes. Close the day clean.',
+    questions:[
+      {key:'executed', label:'Executed well', q:'What did I execute well today?'},
+      {key:'avoided', label:'Avoided discomfort', q:'Where did I lack discipline or avoid discomfort?'},
+      {key:'correction', label:'Correction for tomorrow', q:'What is one correction for tomorrow?'},
+      {key:'reinforcement', label:'Reinforcement', q:'Reinforce consistency over emotion in one sentence.'}
+    ]
+  },
+  weekly: {
+    label:'Weekly review', short:'Weekly', color:'weekly',
+    desc:'Unlocks after 5 daily check-ins. Zoom out.',
+    questions:[
+      {key:'patterns', label:'Patterns forming', q:'What patterns are forming?'},
+      {key:'lied', label:'Where I lied to myself', q:'Where am I lying to myself?'},
+      {key:'remove', label:'Remove next week', q:'What needs to be removed next week?'},
+      {key:'doubleDown', label:'Double down next week', q:'What deserves more focus?'}
+    ]
+  },
+  monthly: {
+    label:'Monthly review', short:'Monthly', color:'monthly',
+    desc:'Unlocks after 4 weekly reviews. Zoom out on the zoom-out.',
+    questions:[
+      {key:'pattern', label:'Pattern this month', q:'What pattern defined this month?'},
+      {key:'structural', label:'Structural change', q:'What structural change actually moved my life forward, and what did I only talk about?'},
+      {key:'carryForward', label:'Carries forward', q:'What carries into next month, and what stays behind?'}
+    ]
+  }
+};
+
+const NAV = [
+  {group:'Today', items:[{id:'home', label:'Dashboard', icon:'home'}]},
+  {group:'Check-ins', items:[
+    {id:'morning', label:'Morning check-in', icon:'sun'},
+    {id:'evening', label:'Evening review', icon:'moon'},
+    {id:'weekly', label:'Weekly review', icon:'week'},
+    {id:'monthly', label:'Monthly review', icon:'week'}
+  ]},
+  {group:'Reference', items:[
+    {id:'history', label:'History', icon:'history'},
+    {id:'thennow', label:'Then vs now', icon:'vision'},
+    {id:'vision', label:'Vision', icon:'vision'},
+    {id:'rules', label:'Rules & standards', icon:'rules'},
+    {id:'notes', label:'Notes', icon:'notes'},
+    {id:'privacy', label:'Privacy', icon:'rules'},
+    {id:'settings', label:'Settings', icon:'settings'}
+  ]}
+];
+
+const ICONS = {
+  home:'<path d="M3 9l7-6 7 6v9a1 1 0 01-1 1h-3v-6H7v6H4a1 1 0 01-1-1z"/>',
+  sun:'<circle cx="10" cy="10" r="3.2"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.5 4.5l1.4 1.4M14.1 14.1l1.4 1.4M4.5 15.5l1.4-1.4M14.1 5.9l1.4-1.4" stroke-linecap="round"/>',
+  moon:'<path d="M15.5 12.3A6.5 6.5 0 017.7 4.5 6.5 6.5 0 1015.5 12.3z"/>',
+  week:'<rect x="3" y="4" width="14" height="13" rx="1.5"/><path d="M3 8h14M7 2v4M13 2v4" stroke-linecap="round"/>',
+  history:'<circle cx="10" cy="10" r="7.2"/><path d="M10 6v4l3 2" stroke-linecap="round"/>',
+  vision:'<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.2"/><circle cx="10" cy="10" r="0.6" fill="currentColor"/>',
+  rules:'<path d="M4 3h9l3 3v11a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M6.5 8h7M6.5 11h7M6.5 14h4" stroke-linecap="round"/>',
+  notes:'<path d="M4 3h12v14H4z"/><path d="M7 7h6M7 10h6M7 13h3" stroke-linecap="round"/>',
+  settings:'<circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.1 4.9l-1.4 1.4M6.3 13.7l-1.4 1.4M15.1 15.1l-1.4-1.4M6.3 6.3L4.9 4.9" stroke-linecap="round"/>'
+};
+
+/* ============================= STATE ============================= */
+// Fill these in from Supabase: Project Settings > API
+const SUPABASE_URL = 'https://lemztqpqnbqrbfdaqhmk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_5ZHucPvwlXvWczS4kjewZA_dxj6f1Ct';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let checkinsData = {};   // { "morning:2026-07-09": {...}, "evening:2026-07-09": {...}, "weekly:2026-07-06": {...} }
+let appConfig = { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{} };
+let currentView = 'home';
+let storageReady = false;
+
+function todayISO(d=new Date()){ return d.toISOString().slice(0,10); }
+function mondayOf(d=new Date()){
+  const dt = new Date(d);
+  const day = (dt.getDay()+6)%7; // 0=Mon
+  dt.setDate(dt.getDate()-day);
+  return todayISO(dt);
+}
+function fmtDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function fmtDateShort(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function monthKeyOf(d=new Date()){
+  return d.toISOString().slice(0,7)+'-01';
+}
+function fmtMonth(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+}
+
+/* ============================= STORAGE (Supabase) ============================= */
+async function loadAll(){
+  try{
+    const { data, error } = await supabase
+      .from('user_data')
+      .select('checkins, config')
+      .eq('user_id', currentUser.id)
+      .single();
+    if(error) throw error;
+    checkinsData = data.checkins || {};
+    appConfig = Object.keys(data.config||{}).length ? data.config : appConfig;
+    if(!appConfig.notes) appConfig.notes = [];
+    if(!appConfig.vision) appConfig.vision = {};
+    if(!appConfig.settings) appConfig.settings = {morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false};
+    if(typeof appConfig.settings.domainsEnabled !== 'boolean') appConfig.settings.domainsEnabled = false;
+    if(!appConfig.manualNonNegotiables) appConfig.manualNonNegotiables = {};
+    if(typeof appConfig.onboardingComplete !== 'boolean') appConfig.onboardingComplete = false;
+  }catch(e){
+    console.error('load failed', e);
+    checkinsData = {};
+  }
+  storageReady = true;
+}
+async function supabaseWriteWithRetry(column, value, attempts=3){
+  let lastErr = null;
+  for(let i=0;i<attempts;i++){
+    try{
+      const { error } = await supabase
+        .from('user_data')
+        .update({ [column]: value })
+        .eq('user_id', currentUser.id);
+      if(error) throw error;
+      return true;
+    }catch(e){
+      lastErr = e;
+      await new Promise(r=>setTimeout(r, 400 * (i+1)));
+    }
+  }
+  console.error('supabase write failed after retries', column, lastErr);
+  return false;
+}
+function showSaveErrorToast(){
+  let toast = document.getElementById('saveErrorToast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'saveErrorToast';
+    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2A1A22;border:1px solid #6B3B4A;color:#F0B8C4;font-size:12.5px;padding:10px 16px;border-radius:8px;z-index:9999;max-width:90%;text-align:center;transition:opacity .25s;opacity:0;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = "Couldn't save just now — check your connection. Your answer is still on screen, try again in a moment.";
+  toast.style.opacity = '1';
+  clearTimeout(showSaveErrorToast._t);
+  showSaveErrorToast._t = setTimeout(()=>{ toast.style.opacity = '0'; }, 5000);
+}
+async function saveCheckins(){
+  const ok = await supabaseWriteWithRetry('checkins', checkinsData);
+  if(!ok) showSaveErrorToast();
+  return ok;
+}
+async function saveConfig(){
+  const ok = await supabaseWriteWithRetry('config', appConfig);
+  if(!ok) showSaveErrorToast();
+  return ok;
+}
+
+/* ============================= CLAUDE API (via backend proxy) ============================= */
+async function callClaude(system, userMsg){
+  const res = await fetch('/api/claude',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      max_tokens:300,
+      system: system,
+      messages:[{role:'user', content: userMsg}]
+    })
+  });
+  const data = await res.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  return text;
+}
+async function refineAnswer(question, raw){
+  if(!raw || !raw.trim()) return raw;
+  const sys = PERSONA_PROMPT + `
+
+Task: The user just answered a check-in question. Respond ONLY with strict JSON and nothing else — no markdown fences, no preamble: {"refined": "..."}. Turn their raw answer into one tight, concrete one-line entry, under 20 words, written in this OS's calm, direct, no-hype voice, in first person. Do not add advice or commentary. Just crystallize what they said.`;
+  const msg = `Question: ${question}\nRaw answer: ${raw}`;
+  try{
+    let text = await callClaude(sys, msg);
+    text = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+    return parsed.refined || raw.trim();
+  }catch(e){
+    return raw.trim();
+  }
+}
+async function getReflection(flowLabel, qaPairs){
+  const sys = PERSONA_PROMPT + `
+
+Task: The user just completed their ${flowLabel}. Respond with a short, grounded reflection — 2 to 3 sentences, plain text, no markdown, no headers, no bullet points, first-person-plural or direct address ("you"). Calm, direct, no hype, no therapy language. Anchor them in structure over emotion.`;
+  const msg = qaPairs.map(p=>`${p.q}\n${p.a}`).join('\n\n');
+  try{
+    return (await callClaude(sys, msg)).trim();
+  }catch(e){
+    return 'Logged. Consistency is the only metric that matters — show up again tomorrow.';
+  }
+}
+async function refineVisionField(fieldLabel, raw){
+  if(!raw || !raw.trim()) return raw;
+  const sys = PERSONA_PROMPT + `
+
+Task: The user just wrote their "${fieldLabel}" for their long-term direction page. Respond ONLY with strict JSON and nothing else — no markdown fences, no preamble: {"refined": "..."}. Correct and tighten what they wrote into one or two clear, concrete sentences, in this OS's calm, direct, no-hype voice, first person. Fix vagueness and ramble, but preserve their actual meaning and specifics — do not invent new content, goals, or numbers they didn't give you.`;
+  try{
+    let text = await callClaude(sys, `Raw text: ${raw}`);
+    text = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+    return parsed.refined || raw.trim();
+  }catch(e){
+    return raw.trim();
+  }
+}
+async function getShiftReflection(thenEntry, nowEntry){
+  const sys = PERSONA_PROMPT + `
+
+Task: Below are two morning check-ins from the same person — one from early on, one recent. Respond with 2 to 3 sentences, plain text, no markdown, direct address ("you"), calm and grounded, no hype, no false praise. Point at the specific, concrete difference in how they're answering now versus then — not a generic "great progress" message. If the two are barely different, say that plainly instead of inventing a shift that isn't there.`;
+  const msg = `Then (${thenEntry.date}):\n${FLOWS.morning.questions.map(q=>q.label+': '+thenEntry[q.key]).join('\n')}\n\nNow (${nowEntry.date}):\n${FLOWS.morning.questions.map(q=>q.label+': '+nowEntry[q.key]).join('\n')}`;
+  try{
+    return (await callClaude(sys, msg)).trim();
+  }catch(e){
+    return "Couldn't generate this right now — try again in a moment.";
+  }
+}
+/* ============================= NAV / RENDER ============================= */
+function weekCheckinCount(weekMonday){
+  const days = new Set();
+  Object.keys(checkinsData).forEach(k=>{
+    const [type,date] = k.split(':');
+    if(type==='weekly' || type==='monthly') return;
+    if(mondayOf(new Date(date+'T00:00:00')) === weekMonday) days.add(date);
+  });
+  return days.size;
+}
+function isWeeklyUnlocked(weekMonday){
+  return weekCheckinCount(weekMonday) >= 5;
+}
+function weeklyCountForMonth(monthKey){
+  const ym = monthKey.slice(0,7);
+  let count = 0;
+  Object.keys(checkinsData).forEach(k=>{
+    const [type,date] = k.split(':');
+    if(type==='weekly' && date && date.slice(0,7)===ym) count++;
+  });
+  return count;
+}
+function isMonthlyUnlocked(monthKey){
+  return weeklyCountForMonth(monthKey) >= 4;
+}
+function computeStreak(){
+  let streak = 0;
+  let d = new Date();
+  while(true){
+    const iso = todayISO(d);
+    const m = checkinsData['morning:'+iso], e = checkinsData['evening:'+iso];
+    if(m && e){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+function renderNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = '';
+  NAV.forEach(group=>{
+    const label = document.createElement('div');
+    label.className = 'navgroup-label';
+    label.textContent = group.group;
+    nav.appendChild(label);
+    group.items.forEach(item=>{
+      const btn = document.createElement('button');
+      btn.className = 'navitem' + (currentView===item.id ? ' active':'');
+      let badge = '';
+      if(item.id==='weekly'){
+        const wm = mondayOf();
+        const cnt = weekCheckinCount(wm);
+        if(!isWeeklyUnlocked(wm)) badge = `<span class="navbadge">${cnt}/5</span>`;
+      }
+      if(item.id==='monthly'){
+        const mk = monthKeyOf();
+        const cnt = weeklyCountForMonth(mk);
+        if(!isMonthlyUnlocked(mk)) badge = `<span class="navbadge">${cnt}/4</span>`;
+      }
+      btn.innerHTML = `<span class="navdot"></span><span class="navlabel">${item.label}</span>${badge}`;
+      btn.onclick = ()=>{ currentView = item.id; render(); };
+      nav.appendChild(btn);
+    });
+  });
+}
+
+function render(){
+  stopActiveRecognition();
+  if(!appConfig.onboardingComplete){
+    document.getElementById('main').innerHTML = '';
+    renderOnboarding(document.getElementById('main'));
+    return;
+  }
+  renderNav();
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  if(currentView==='home') renderHome(main);
+  else if(['morning','evening'].includes(currentView)) renderCheckinFlow(main, currentView);
+  else if(currentView==='weekly') renderWeeklyFlow(main);
+  else if(currentView==='monthly') renderMonthlyFlow(main);
+  else if(currentView==='history') renderHistory(main);
+  else if(currentView==='thennow') renderThenNow(main);
+  else if(currentView==='vision') renderVision(main);
+  else if(currentView==='rules') renderRules(main);
+  else if(currentView==='notes') renderNotes(main);
+  else if(currentView==='privacy') renderPrivacy(main);
+  else if(currentView==='settings') renderSettings(main);
+}
+
+/* ============================= ONBOARDING ============================= */
+let onboardStep = 0;
+const ONBOARD_SCREENS = [
+  { eyebrow:'Before you start', title:"This isn't therapy. It's infrastructure.",
+    body:"Mental Clarity OS runs on five questions, three times a day. <strong>Morning sets the standard. Evening closes it.</strong> Weekly and monthly show you the pattern. That's the whole system." },
+  { eyebrow:'How it works', title:'One line per answer.',
+    body:"Write in fragments if you want. Every answer gets tightened into one clear sentence before it's logged — <strong>that's not your job.</strong> The goal isn't to journal. It's to see clearly, fast." },
+  { eyebrow:'How it unlocks', title:'Days build weeks. Weeks build months.',
+    body:"Weekly review unlocks after <strong>5 logged days</strong>. Monthly unlocks after <strong>4 logged weeks</strong>. Nothing here rewards a streak for its own sake — it just won't let you zoom out before you've put in the days." }
+];
+function renderOnboarding(main){
+  document.getElementById('sidebar').style.display = 'none';
+  if(onboardStep < ONBOARD_SCREENS.length){
+    const s = ONBOARD_SCREENS[onboardStep];
+    main.innerHTML = `
+      <div id="onboardWrap">
+        <div class="ob-dots">${ONBOARD_SCREENS.map((_,i)=>`<span class="${i<=onboardStep?'on':''}"></span>`).join('')}<span></span></div>
+        <div class="ob-eyebrow">${s.eyebrow}</div>
+        <div class="ob-title">${s.title}</div>
+        <div class="ob-body">${s.body}</div>
+        <button class="primary" id="obNext">Continue</button>
+      </div>
+    `;
+    document.getElementById('obNext').onclick = ()=>{ onboardStep++; renderOnboarding(main); };
+  }else{
+    main.innerHTML = `
+      <div id="onboardWrap">
+        <div class="ob-dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+        <div class="ob-eyebrow">One thing, before your first check-in</div>
+        <div class="ob-title">What are you actually building toward?</div>
+        <div class="ob-body">You can skip this and finish it later, under Vision.</div>
+        <textarea class="answer" id="obIdentity" placeholder="I am..." style="min-height:90px;margin-bottom:20px;"></textarea>
+        <div class="btnrow">
+          <button class="primary" id="obStart">Start today's check-in</button>
+          <button class="ghost" id="obSkip">Skip for now</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('obStart').onclick = (e)=> finishOnboarding(main, true, e.target);
+    document.getElementById('obSkip').onclick = (e)=> finishOnboarding(main, false, e.target);
+  }
+}
+async function finishOnboarding(main, goToCheckin, clickedBtn){
+  document.getElementById('obStart').disabled = true;
+  document.getElementById('obSkip').disabled = true;
+  if(clickedBtn) clickedBtn.textContent = 'One sec...';
+  const val = document.getElementById('obIdentity')?.value?.trim();
+  if(val){
+    if(!appConfig.vision) appConfig.vision = {};
+    appConfig.vision.identity = val;
+  }
+  appConfig.onboardingComplete = true;
+  await saveConfig();
+  document.getElementById('sidebar').style.display = '';
+  currentView = goToCheckin ? 'morning' : 'home';
+  render();
+}
+
+/* ============================= HOME ============================= */
+function renderHome(main){
+  const iso = todayISO();
+  const mDone = !!checkinsData['morning:'+iso];
+  const eDone = !!checkinsData['evening:'+iso];
+  const streak = computeStreak();
+  const totalLogged = Object.keys(checkinsData).length;
+  const wm = mondayOf();
+  const weekCount = weekCheckinCount(wm);
+  const mk = monthKeyOf();
+  const monthCount = weeklyCountForMonth(mk);
+
+  main.innerHTML = `
+    <div class="page-eyebrow">${new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'})}</div>
+    <div class="page-title">Today's standard</div>
+    <div class="page-sub voice">Results come from consistency, not customization.</div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value">${streak} <small>day${streak===1?'':'s'}</small></div></div>
+      <div class="stat-card"><div class="stat-label">This week</div><div class="stat-value">${weekCount} <small>/ 7 logged</small></div></div>
+      <div class="stat-card"><div class="stat-label">Total entries</div><div class="stat-value">${totalLogged}</div></div>
+    </div>
+
+    <div class="today-row">
+      <div class="flow-card" onclick="currentView='morning';render();">
+        <div class="flow-card-top">
+          <div class="flow-card-title">Morning check-in</div>
+          <div class="flow-status ${mDone?'done':'pending'}">${mDone?'Done':'Open'}</div>
+        </div>
+        <div class="flow-card-desc">${FLOWS.morning.desc}</div>
+      </div>
+      <div class="flow-card" onclick="currentView='evening';render();">
+        <div class="flow-card-top">
+          <div class="flow-card-title">Evening review</div>
+          <div class="flow-status ${eDone?'done':'pending'}">${eDone?'Done':'Open'}</div>
+        </div>
+        <div class="flow-card-desc">${FLOWS.evening.desc}</div>
+      </div>
+    </div>
+
+    <div class="today-row">
+      <div class="flow-card" onclick="currentView='weekly';render();">
+        <div class="flow-card-top">
+          <div class="flow-card-title">Weekly review</div>
+          <div class="flow-status ${isWeeklyUnlocked(wm)?'done':'pending'}">${isWeeklyUnlocked(wm)?'Unlocked':weekCount+'/5'}</div>
+        </div>
+        <div class="flow-card-desc">Zoom out once you've logged 5 days this week.</div>
+      </div>
+      <div class="flow-card" onclick="currentView='monthly';render();">
+        <div class="flow-card-top">
+          <div class="flow-card-title">Monthly review</div>
+          <div class="flow-status ${isMonthlyUnlocked(mk)?'done':'pending'}">${isMonthlyUnlocked(mk)?'Unlocked':monthCount+'/4'}</div>
+        </div>
+        <div class="flow-card-desc">Zoom out on the zoom-out once you've logged 4 weeks.</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ============================= CHECKIN FLOW (morning/evening) ============================= */
+let flowState = {}; // { flow, index, answers:{key:{raw,refined}}, saving, phase }
+
+function renderCheckinFlow(main, flowKey, weeklyDate=null){
+  const flow = FLOWS[flowKey];
+  const dateKey = weeklyDate || todayISO();
+  const showDomains = appConfig.settings.domainsEnabled && (flowKey==='morning' || flowKey==='evening');
+  const priorDomain = (flowState.flowKey===flowKey && flowState.dateKey===dateKey) ? flowState.domain : null;
+  const domain = showDomains ? (priorDomain || 'personal') : 'personal';
+  const storageKey = flowKey+':'+dateKey + (domain==='business' ? ':business' : '');
+  const existing = checkinsData[storageKey];
+
+  if(!flowState.flow || flowState.flow!==storageKey){
+    flowState = { flow: storageKey, flowKey, dateKey, domain, index:0, answers:{}, saving:false, phase: existing ? 'complete' : 'asking', reflection: existing ? existing._reflection : null };
+  }
+
+  if(existing && flowState.phase==='complete'){
+    renderCompleteView(main, flow, flowKey, existing);
+    return;
+  }
+
+  const q = flow.questions[flowState.index];
+  const total = flow.questions.length;
+  const pct = (flowState.index / total) * 100;
+
+  const periodLabel = flowKey==='monthly' ? fmtMonth(dateKey) : (weeklyDate ? 'week of '+fmtDateShort(weeklyDate) : fmtDate(dateKey));
+  const domainPills = showDomains ? `
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button class="filter-btn domain-pill ${flowState.domain==='personal'?'active':''}" data-d="personal">Personal</button>
+      <button class="filter-btn domain-pill ${flowState.domain==='business'?'active':''}" data-d="business">Business</button>
+    </div>` : '';
+
+  main.innerHTML = `
+    <div class="page-eyebrow">${flow.label}</div>
+    <div class="page-title">${periodLabel}</div>
+    <div class="page-sub voice">${flow.desc}</div>
+    ${domainPills}
+
+    <div class="progress-track">
+      <div class="progress-fill" style="width:${pct}%"></div>
+      <div class="progress-dot" style="left:${pct}%"></div>
+    </div>
+
+    <div class="qcounter">Question ${flowState.index+1} of ${total}</div>
+    <div class="qtext">${q.q}</div>
+    <div class="answer-wrap">
+      <textarea class="answer" id="answerInput" placeholder="Answer in one or two sentences...">${flowState.answers[q.key]?.raw || ''}</textarea>
+      <button class="mic-btn" id="micBtn" type="button" title="Voice input" style="display:none;">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2.5a2.8 2.8 0 012.8 2.8v4.4a2.8 2.8 0 01-5.6 0V5.3A2.8 2.8 0 0110 2.5z" fill="currentColor"/><path d="M5.5 9.5a4.5 4.5 0 009 0M10 14v3.5M7 17.5h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="btnrow" id="btnrow">
+      <button class="primary" id="nextBtn">${flowState.index===total-1 ? 'Finish' : 'Next'}</button>
+      ${flowState.index>0 ? '<button class="ghost" id="backBtn">Back</button>' : ''}
+    </div>
+    <div id="statusArea"></div>
+  `;
+
+  document.getElementById('nextBtn').onclick = ()=> handleNext(main, flowKey, weeklyDate);
+  const backBtn = document.getElementById('backBtn');
+  if(backBtn) backBtn.onclick = ()=>{ flowState.index--; renderCheckinFlow(main, flowKey, weeklyDate); };
+  const ta = document.getElementById('answerInput');
+  ta.focus();
+  ta.addEventListener('keydown', e=>{
+    if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) handleNext(main, flowKey, weeklyDate);
+  });
+  setupVoiceInput(ta, document.getElementById('micBtn'));
+  main.querySelectorAll('.domain-pill').forEach(btn=>{
+    btn.onclick = ()=>{ flowState.domain = btn.dataset.d; renderCheckinFlow(main, flowKey, weeklyDate); };
+  });
+}
+
+/* ============================= VOICE INPUT ============================= */
+let activeRecognition = null;
+function stopActiveRecognition(){
+  if(activeRecognition){
+    try{ activeRecognition.stop(); }catch(e){}
+    activeRecognition = null;
+  }
+}
+function setupVoiceInput(taEl, btnEl){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ return; }
+  btnEl.style.display = 'flex';
+  let listening = false;
+  let baseText = '';
+
+  btnEl.onclick = ()=>{
+    if(listening){
+      stopActiveRecognition();
+      return;
+    }
+    stopActiveRecognition();
+    hideVoiceError();
+    baseText = taEl.value ? taEl.value.trim()+' ' : '';
+    let recognition;
+    try{
+      recognition = new SR();
+    }catch(e){
+      showVoiceError("Voice input isn't available in this browser.");
+      return;
+    }
+    activeRecognition = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onstart = ()=>{ listening = true; btnEl.classList.add('listening'); };
+    recognition.onresult = (e)=>{
+      let transcript = '';
+      for(let i=0;i<e.results.length;i++){ transcript += e.results[i][0].transcript; }
+      taEl.value = baseText + transcript;
+    };
+    recognition.onerror = (e)=>{
+      listening = false;
+      btnEl.classList.remove('listening');
+      if(activeRecognition===recognition) activeRecognition = null;
+      const messages = {
+        'not-allowed': "Microphone access is blocked. Check your browser or device's site permissions.",
+        'permission-denied': "Microphone access is blocked. Check your browser or device's site permissions.",
+        'no-speech': "Didn't catch anything — try again.",
+        'audio-capture': "No microphone found on this device.",
+        'network': "Connection issue reaching voice recognition — try again.",
+        'service-not-allowed': "Voice input is blocked in this environment."
+      };
+      showVoiceError(messages[e.error] || "Voice input hit an error — try again, or just type.");
+    };
+    recognition.onend = ()=>{ listening = false; btnEl.classList.remove('listening'); if(activeRecognition===recognition) activeRecognition = null; };
+    try{
+      recognition.start();
+    }catch(e){
+      showVoiceError("Couldn't start voice input — try again, or just type.");
+    }
+  };
+}
+function showVoiceError(msg){
+  let el = document.getElementById('voiceError');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'voiceError';
+    el.style.cssText = 'font-size:12px;color:#F0B8C4;margin-top:8px;';
+    const wrap = document.querySelector('.answer-wrap');
+    if(wrap && wrap.parentNode) wrap.parentNode.insertBefore(el, wrap.nextSibling);
+  }
+  el.textContent = msg;
+}
+function hideVoiceError(){
+  const el = document.getElementById('voiceError');
+  if(el) el.remove();
+}
+
+async function handleNext(main, flowKey, weeklyDate){
+  const flow = FLOWS[flowKey];
+  const q = flow.questions[flowState.index];
+  const ta = document.getElementById('answerInput');
+  const raw = ta.value.trim();
+  if(!raw) return;
+
+  const btnrow = document.getElementById('btnrow');
+  const statusArea = document.getElementById('statusArea');
+  btnrow.querySelectorAll('button').forEach(b=>b.disabled=true);
+  statusArea.innerHTML = `<div class="thinking" style="margin-top:16px;"><span class="spin"></span>Refining your answer...</div>`;
+
+  const refined = await refineAnswer(q.q, raw);
+  flowState.answers[q.key] = { raw, refined };
+
+  statusArea.innerHTML = `<div class="refined-preview"><div class="lbl">Logged as</div>${escapeHtml(refined)}</div>`;
+  await new Promise(r=>setTimeout(r, 550));
+
+  if(flowState.index < flow.questions.length-1){
+    flowState.index++;
+    renderCheckinFlow(main, flowKey, weeklyDate);
+  }else{
+    await finishFlow(main, flowKey, weeklyDate);
+  }
+}
+
+async function finishFlow(main, flowKey, weeklyDate){
+  const flow = FLOWS[flowKey];
+  const dateKey = weeklyDate || todayISO();
+  const domain = flowState.domain || 'personal';
+  const storageKey = flowKey+':'+dateKey + (domain==='business' ? ':business' : '');
+
+  main.innerHTML = `<div class="page-title">Closing it out</div><div class="thinking" style="margin-top:16px;"><span class="spin"></span>Writing your reflection...</div>`;
+
+  const qaPairs = flow.questions.map(q=>({ q: q.q, a: flowState.answers[q.key].refined }));
+  const reflection = await getReflection(flow.label, qaPairs);
+
+  const entry = { date: dateKey, type: flowKey, domain: (flowKey==='morning'||flowKey==='evening') ? domain : undefined };
+  flow.questions.forEach(q=>{ entry[q.key] = flowState.answers[q.key].refined; });
+  entry._reflection = reflection;
+  entry._loggedAt = new Date().toISOString();
+
+  checkinsData[storageKey] = entry;
+  await saveCheckins();
+
+  flowState.phase = 'complete';
+  flowState.reflection = reflection;
+  renderCompleteView(main, flow, flowKey, entry, weeklyDate);
+}
+
+function renderCompleteView(main, flow, flowKey, entry, weeklyDate=null){
+  const rows = flow.questions.map(q=>`
+    <div class="entry-row"><div class="k">${q.label}</div><div class="v">${escapeHtml(entry[q.key])}</div></div>
+  `).join('');
+
+  const periodLabel = flowKey==='monthly' ? fmtMonth(entry.date) : (weeklyDate ? 'week of '+fmtDateShort(weeklyDate) : fmtDate(entry.date));
+  main.innerHTML = `
+    <div class="page-eyebrow">${flow.label}</div>
+    <div class="page-title">${periodLabel}</div>
+    <div class="complete-wrap">
+      <div class="complete-mark">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#8B7CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="reflection-box">${escapeHtml(entry._reflection || '')}</div>
+      <div class="entry-summary">${rows}</div>
+      <div class="btnrow">
+        <button class="ghost" id="redoBtn">Redo this entry</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('redoBtn').onclick = ()=>{
+    const domain = entry.domain || 'personal';
+    const key = flowKey+':'+entry.date + (domain==='business' ? ':business' : '');
+    flowState = { flow: key, flowKey, dateKey: entry.date, domain, index:0, answers:{}, saving:false, phase:'asking' };
+    renderCheckinFlow(main, flowKey, weeklyDate);
+  };
+}
+
+/* ============================= WEEKLY FLOW ============================= */
+function renderWeeklyFlow(main){
+  const wm = mondayOf();
+  const unlocked = isWeeklyUnlocked(wm);
+  const count = weekCheckinCount(wm);
+  const existing = checkinsData['weekly:'+wm];
+
+  if(!unlocked && !existing){
+    main.innerHTML = `
+      <div class="page-eyebrow">Weekly review</div>
+      <div class="page-title">Not yet</div>
+      <div class="locked-box">
+        <div class="lock-icon"><svg width="30" height="30" viewBox="0 0 20 20" fill="none"><rect x="5" y="9" width="10" height="8" rx="1.5" stroke="#948DAB" stroke-width="1.4"/><path d="M7 9V6a3 3 0 016 0v3" stroke="#948DAB" stroke-width="1.4"/></svg></div>
+        <div>Log 5 daily check-ins this week to unlock the weekly review.</div>
+        <div class="locked-progress">${[1,2,3,4,5].map(i=>`<span class="${i<=count?'filled':''}"></span>`).join('')}</div>
+        <div style="font-size:12.5px;color:var(--text-faint);">${count} of 5 logged &mdash; week of ${fmtDateShort(wm)}</div>
+      </div>
+    `;
+    return;
+  }
+  renderCheckinFlow(main, 'weekly', wm);
+}
+
+/* ============================= MONTHLY FLOW ============================= */
+function renderMonthlyFlow(main){
+  const mk = monthKeyOf();
+  const unlocked = isMonthlyUnlocked(mk);
+  const count = weeklyCountForMonth(mk);
+  const existing = checkinsData['monthly:'+mk];
+
+  if(!unlocked && !existing){
+    main.innerHTML = `
+      <div class="page-eyebrow">Monthly review</div>
+      <div class="page-title">Not yet</div>
+      <div class="locked-box">
+        <div class="lock-icon"><svg width="30" height="30" viewBox="0 0 20 20" fill="none"><rect x="5" y="9" width="10" height="8" rx="1.5" stroke="#948DAB" stroke-width="1.4"/><path d="M7 9V6a3 3 0 016 0v3" stroke="#948DAB" stroke-width="1.4"/></svg></div>
+        <div>Log 4 weekly reviews this month to unlock the monthly review.</div>
+        <div class="locked-progress">${[1,2,3,4].map(i=>`<span class="${i<=count?'filled':''}"></span>`).join('')}</div>
+        <div style="font-size:12.5px;color:var(--text-faint);">${count} of 4 logged &mdash; ${fmtMonth(mk)}</div>
+      </div>
+    `;
+    return;
+  }
+  renderCheckinFlow(main, 'monthly', mk);
+}
+
+/* ============================= HISTORY ============================= */
+let historyFilter = 'all';
+let historyDomainFilter = 'all';
+function renderHistory(main){
+  const entries = Object.entries(checkinsData).map(([k,v])=>v).sort((a,b)=> b.date.localeCompare(a.date) || b._loggedAt?.localeCompare(a._loggedAt||'') );
+  let filtered = historyFilter==='all' ? entries : entries.filter(e=>e.type===historyFilter);
+  const domainsOn = appConfig.settings.domainsEnabled;
+  if(domainsOn && historyDomainFilter!=='all'){
+    filtered = filtered.filter(e=> e.domain ? e.domain===historyDomainFilter : historyDomainFilter==='personal');
+  }
+
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">History</div>
+    <div class="page-sub voice">Every entry, in order. Patterns live here.</div>
+    <div class="filter-row" id="filterRow">
+      ${['all','morning','evening','weekly','monthly'].map(f=>`<button class="filter-btn ${historyFilter===f?'active':''}" data-f="${f}">${f==='all'?'All':FLOWS[f]?.label||f}</button>`).join('')}
+    </div>
+    ${domainsOn ? `<div class="filter-row" id="domainFilterRow">${['all','personal','business'].map(d=>`<button class="filter-btn ${historyDomainFilter===d?'active':''}" data-d="${d}">${d==='all'?'All domains':d[0].toUpperCase()+d.slice(1)}</button>`).join('')}</div>` : ''}
+    <div id="historyTableWrap"></div>
+  `;
+  document.querySelectorAll('#filterRow .filter-btn').forEach(b=>{
+    b.onclick = ()=>{ historyFilter = b.dataset.f; renderHistory(main); };
+  });
+  const domainRow = document.getElementById('domainFilterRow');
+  if(domainRow) domainRow.querySelectorAll('.filter-btn').forEach(b=>{
+    b.onclick = ()=>{ historyDomainFilter = b.dataset.d; renderHistory(main); };
+  });
+
+  const wrap = document.getElementById('historyTableWrap');
+  if(filtered.length===0){
+    wrap.innerHTML = `<div class="empty-state">Nothing logged yet. Start with today's morning check-in.</div>`;
+    return;
+  }
+  const rows = filtered.map(e=>{
+    const flow = FLOWS[e.type];
+    const summary = flow.questions.map(q=>e[q.key]).filter(Boolean).join(' · ');
+    const dateLabel = e.type==='monthly' ? fmtMonth(e.date) : fmtDateShort(e.date);
+    const domainTag = domainsOn && e.domain ? ` <span style="font-size:10px;color:var(--text-faint);">&middot; ${e.domain}</span>` : '';
+    return `<tr><td class="date">${dateLabel}</td><td><span class="type-pill ${e.type}">${flow.short}</span>${domainTag}</td><td>${escapeHtml(summary)}</td></tr>`;
+  }).join('');
+  wrap.innerHTML = `
+    <table class="history">
+      <thead><tr><th>Date</th><th>Type</th><th>Summary</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+/* ============================= VISION ============================= */
+/* ============================= THEN VS NOW ============================= */
+function getSortedMorningEntries(domainFilter){
+  return Object.entries(checkinsData)
+    .filter(([k,v])=>v.type==='morning' && (!domainFilter || domainFilter==='all' || (v.domain||'personal')===domainFilter))
+    .map(([,v])=>v)
+    .sort((a,b)=> a.date.localeCompare(b.date));
+}
+function renderThenNow(main){
+  const domainsOn = appConfig.settings.domainsEnabled;
+  const activeDomain = renderThenNow._domain || 'all';
+  const entries = getSortedMorningEntries(domainsOn ? activeDomain : null);
+
+  if(entries.length < 2){
+    main.innerHTML = `
+      <div class="page-eyebrow">Reference</div>
+      <div class="page-title">Then vs now</div>
+      <div class="page-sub voice">The proof shows up after you've put in the days.</div>
+      ${domainsOn ? `<div class="filter-row">${['all','personal','business'].map(d=>`<button class="filter-btn ${activeDomain===d?'active':''}" data-d="${d}">${d==='all'?'All domains':d[0].toUpperCase()+d.slice(1)}</button>`).join('')}</div>` : ''}
+      <div class="empty-state">Log a handful of weeks of morning check-ins and this page will hold up your own words — then, and now.</div>
+    `;
+    if(domainsOn) main.querySelectorAll('.filter-btn').forEach(b=>{ b.onclick = ()=>{ renderThenNow._domain = b.dataset.d; renderThenNow(main); }; });
+    return;
+  }
+
+  const then = entries[0];
+  const now = entries[entries.length-1];
+  const rows = FLOWS.morning.questions.map(q=>`
+    <div class="compare-row">
+      <div class="compare-label">${q.label}</div>
+      <div class="compare-val">${escapeHtml(then[q.key]||'—')}</div>
+      <div class="compare-val now">${escapeHtml(now[q.key]||'—')}</div>
+    </div>
+  `).join('');
+
+  const cached = appConfig.thenNow;
+  const isCurrent = cached && cached.thenDate===then.date && cached.nowDate===now.date;
+
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">Then vs now</div>
+    <div class="page-sub voice">Proof you moved forward, in your own words.</div>
+    ${domainsOn ? `<div class="filter-row" id="tnDomainRow">${['all','personal','business'].map(d=>`<button class="filter-btn ${activeDomain===d?'active':''}" data-d="${d}">${d==='all'?'All domains':d[0].toUpperCase()+d.slice(1)}</button>`).join('')}</div>` : ''}
+    <div class="card">
+      <div class="compare-head-row">
+        <div></div>
+        <div class="compare-head then">${fmtDateShort(then.date)}</div>
+        <div class="compare-head now">${fmtDateShort(now.date)}</div>
+      </div>
+      ${rows}
+      <div id="shiftArea">
+        ${isCurrent ? `<div class="shift-box">${escapeHtml(cached.text)}</div><div class="btnrow"><button class="ghost" id="shiftBtn">Refresh</button><button class="primary" id="shareBtn">Share your progress</button></div>` : `<div class="btnrow" style="margin-top:22px;"><button class="primary" id="shiftBtn">See the shift</button></div>`}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('shiftBtn').onclick = async ()=>{
+    const area = document.getElementById('shiftArea');
+    area.innerHTML = `<div class="thinking" style="margin-top:16px;"><span class="spin"></span>Reading the difference...</div>`;
+    const text = await getShiftReflection(then, now);
+    appConfig.thenNow = { thenDate: then.date, nowDate: now.date, text };
+    await saveConfig();
+    area.innerHTML = `<div class="shift-box">${escapeHtml(text)}</div><div class="btnrow"><button class="ghost" id="shiftBtn2">Refresh</button><button class="primary" id="shareBtn">Share your progress</button></div>`;
+    document.getElementById('shiftBtn2').onclick = ()=>{ appConfig.thenNow = null; renderThenNow(main); };
+    document.getElementById('shareBtn').onclick = ()=> generateOperatorCard(computeStreak(), text);
+  };
+  const shareBtn = document.getElementById('shareBtn');
+  if(shareBtn) shareBtn.onclick = ()=> generateOperatorCard(computeStreak(), cached.text);
+  const tnDomainRow = document.getElementById('tnDomainRow');
+  if(tnDomainRow) tnDomainRow.querySelectorAll('.filter-btn').forEach(b=>{
+    b.onclick = ()=>{ renderThenNow._domain = b.dataset.d; renderThenNow(main); };
+  });
+}
+
+/* ============================= SHAREABLE OPERATOR CARD ============================= */
+function wrapCanvasText(ctx, text, maxWidth){
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for(const w of words){
+    const test = line ? line+' '+w : w;
+    if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = w; }
+    else{ line = test; }
+  }
+  if(line) lines.push(line);
+  return lines;
+}
+function generateOperatorCard(streak, shiftText){
+  const canvas = document.createElement('canvas');
+  const SIZE = 1080;
+  canvas.width = SIZE; canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0A0812';
+  ctx.fillRect(0,0,SIZE,SIZE);
+
+  ctx.strokeStyle = '#8B7CF6';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(120,700);
+  ctx.bezierCurveTo(200,700,220,470,360,470);
+  ctx.bezierCurveTo(480,470,440,600,560,600);
+  ctx.bezierCurveTo(620,600,630,540,630,540);
+  ctx.stroke();
+  ctx.fillStyle = '#B8A6FF';
+  ctx.beginPath();
+  ctx.arc(630,540,11,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = '#5C5670';
+  ctx.font = '600 30px Arial';
+  ctx.fillText('MENTAL CLARITY OS', 120, 800);
+
+  ctx.fillStyle = '#EDE9F7';
+  ctx.font = '700 190px Arial';
+  ctx.fillText(String(streak), 118, 300);
+  ctx.fillStyle = '#8B7CF6';
+  ctx.font = '600 42px Arial';
+  ctx.fillText('DAY STREAK', 124, 350);
+
+  if(shiftText){
+    ctx.fillStyle = '#C9C3DE';
+    ctx.font = 'italic 34px Georgia';
+    const lines = wrapCanvasText(ctx, shiftText, SIZE-240).slice(0,4);
+    lines.forEach((line,i)=>{ ctx.fillText(line, 120, 900 + i*44); });
+  }
+
+  canvas.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mental-clarity-os-streak.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=> URL.revokeObjectURL(url), 3000);
+  }, 'image/png');
+}
+
+function renderVision(main){
+  const v = appConfig.vision;
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">Long-term direction</div>
+    <div class="page-sub voice">Everything above should serve this.</div>
+    <div class="card">
+      <div class="field-label">12-month target</div>
+      <textarea class="field" id="v-twelve" placeholder="Where this needs to land in a year.">${v.twelveMonth||''}</textarea>
+      <div class="field-label">3-month focus</div>
+      <textarea class="field" id="v-three" placeholder="What the next 90 days are actually for.">${v.threeMonth||''}</textarea>
+      <div class="field-label">This week's mission</div>
+      <textarea class="field" id="v-week" placeholder="The one thing this week has to accomplish.">${v.weekMission||''}</textarea>
+      <div class="field-label">Why this matters</div>
+      <textarea class="field" id="v-why" placeholder="The reason underneath the reason.">${v.why||''}</textarea>
+      <div class="field-label">Identity</div>
+      <textarea class="field" id="v-identity" placeholder="I am a disciplined operator. I do what must be done regardless of mood.">${v.identity||''}</textarea>
+      <div class="btnrow">
+        <button class="primary" id="saveVisionBtn">Save &amp; correct</button>
+        <span id="visionSaved" style="font-size:12.5px;color:var(--mint);opacity:0;transition:opacity .2s;">Saved</span>
+      </div>
+      <div id="visionStatus"></div>
+      <div class="footnote">Corrects wording and tightens vague phrasing into the OS's voice — keeps your meaning, doesn't invent new goals or numbers.</div>
+    </div>
+  `;
+  document.getElementById('saveVisionBtn').onclick = async ()=>{
+    const btn = document.getElementById('saveVisionBtn');
+    const statusEl = document.getElementById('visionStatus');
+    btn.disabled = true;
+    statusEl.innerHTML = `<div class="thinking" style="margin-top:14px;"><span class="spin"></span>Correcting your answers...</div>`;
+
+    const fields = [
+      {id:'v-twelve', key:'twelveMonth', label:'12-month target'},
+      {id:'v-three', key:'threeMonth', label:'3-month focus'},
+      {id:'v-week', key:'weekMission', label:"This week's mission"},
+      {id:'v-why', key:'why', label:'Why this matters'},
+      {id:'v-identity', key:'identity', label:'Identity'}
+    ];
+
+    const refinedResults = await Promise.all(fields.map(f=>{
+      const raw = document.getElementById(f.id).value;
+      return refineVisionField(f.label, raw);
+    }));
+
+    fields.forEach((f,i)=>{
+      appConfig.vision[f.key] = refinedResults[i];
+      document.getElementById(f.id).value = refinedResults[i];
+    });
+
+    await saveConfig();
+    btn.disabled = false;
+    statusEl.innerHTML = '';
+    const s = document.getElementById('visionSaved');
+    s.style.opacity = 1;
+    setTimeout(()=> s.style.opacity = 0, 1600);
+  };
+}
+
+/* ============================= RULES ============================= */
+function getTodayNonNegotiables(){
+  const iso = todayISO();
+  const wm = mondayOf();
+  const manual = appConfig.manualNonNegotiables[iso] || {};
+  return [
+    { key:'morning', label:'Morning check-in daily', auto:true, done: !!checkinsData['morning:'+iso] },
+    { key:'evening', label:'Evening review daily', auto:true, done: !!checkinsData['evening:'+iso] },
+    { key:'weekly', label:'Weekly review completed', auto:true, done: !!checkinsData['weekly:'+wm] },
+    { key:'training', label:'Training / movement scheduled', auto:false, done: !!manual.training },
+    { key:'sleep', label:'Protect sleep and mornings', auto:false, done: !!manual.sleep }
+  ];
+}
+function renderRules(main){
+  const items = getTodayNonNegotiables();
+  const doneCount = items.filter(i=>i.done).length;
+  const rows = items.map(i=>`
+    <li class="tracked-row" data-key="${i.key}" data-auto="${i.auto}" style="cursor:${i.auto?'default':'pointer'};">
+      <span class="tracked-check ${i.done?'done':''}">${i.done ? '<svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#0A0812" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>
+      <span style="${i.done?'color:var(--text);':''}">${i.label}</span>
+      ${i.auto ? '' : '<span style="margin-left:auto;font-size:10px;color:var(--text-faint);">tap to toggle</span>'}
+    </li>
+  `).join('');
+
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">Rules and standards</div>
+    <div class="standards-note">One line per field, no storytelling. This is a tool for discipline and clarity — not therapy or motivation. Results come from consistency, not customization. Questions should clarify execution, not replace it.</div>
+    <div class="card">
+      <div class="rule-group-title">Today &mdash; ${doneCount}/${items.length}</div>
+      <ul class="rule-list tracked-list">${rows}</ul>
+      <div class="footnote">Morning, evening, and weekly are marked automatically from what you've logged. Training and sleep are self-reported &mdash; tap to mark them.</div>
+    </div>
+    <div class="card">
+      <div class="rule-group-title">Non-negotiables</div>
+      <ul class="rule-list">
+        <li>Morning check-in daily</li>
+        <li>Evening review daily</li>
+        <li>Weekly review completed</li>
+        <li>Training / movement scheduled</li>
+        <li>Protect sleep and mornings</li>
+      </ul>
+      <div class="rule-group-title">Operating rules</div>
+      <ul class="rule-list">
+        <li>One priority per day</li>
+        <li>Execution before consumption</li>
+        <li>Consistency over intensity</li>
+        <li>Structure over emotion</li>
+      </ul>
+    </div>
+  `;
+
+  main.querySelectorAll('.tracked-row[data-auto="false"]').forEach(row=>{
+    row.onclick = async ()=>{
+      const iso = todayISO();
+      const key = row.dataset.key;
+      if(!appConfig.manualNonNegotiables[iso]) appConfig.manualNonNegotiables[iso] = {};
+      appConfig.manualNonNegotiables[iso][key] = !appConfig.manualNonNegotiables[iso][key];
+      await saveConfig();
+      renderRules(main);
+    };
+  });
+}
+
+/* ============================= PRIVACY ============================= */
+function renderPrivacy(main){
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">Privacy</div>
+    <div class="page-sub voice">No feed. No leaderboard. No audience.</div>
+    <div class="card">
+      <ul class="rule-list">
+        <li>Nobody sees your answers but you &mdash; not other users, not a public feed, not a leaderboard.</li>
+        <li>Marc doesn't see what you log unless you choose to share it, for example on a 1:1 setup call.</li>
+        <li>There's no social layer here, and there isn't going to be one added later. This isn't built for performing self-improvement publicly.</li>
+        <li>Your data belongs to you. You can export or delete it at any time from Settings.</li>
+      </ul>
+    </div>
+  `;
+}
+
+/* ============================= NOTES ============================= */
+function renderNotes(main){
+  const notes = (appConfig.notes||[]).slice().sort((a,b)=> b.ts.localeCompare(a.ts));
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">Notes and observations</div>
+    <div class="page-sub voice">Free-form. Insights, patterns, corrections, lessons.</div>
+    <div class="card">
+      <textarea class="field" id="newNote" placeholder="Write an observation..." style="min-height:80px;"></textarea>
+      <div class="btnrow"><button class="primary" id="addNoteBtn">Add note</button></div>
+    </div>
+    <div class="card" id="notesList" style="${notes.length===0?'display:none':''}"></div>
+    ${notes.length===0 ? '' : ''}
+  `;
+  document.getElementById('addNoteBtn').onclick = async ()=>{
+    const ta = document.getElementById('newNote');
+    const text = ta.value.trim();
+    if(!text) return;
+    appConfig.notes.push({ id: Date.now().toString(36), ts: new Date().toISOString(), text });
+    await saveConfig();
+    renderNotes(main);
+  };
+
+  const list = document.getElementById('notesList');
+  if(notes.length>0){
+    list.innerHTML = notes.map(n=>`
+      <div class="note-item">
+        <div class="note-date">${new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric', hour:'numeric', minute:'2-digit'})}</div>
+        <div class="note-text">${escapeHtml(n.text)}</div>
+        <button class="note-del" data-id="${n.id}">Remove</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.note-del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        appConfig.notes = appConfig.notes.filter(n=>n.id!==btn.dataset.id);
+        await saveConfig();
+        renderNotes(main);
+      };
+    });
+  }
+}
+
+/* ============================= SETTINGS ============================= */
+function renderSettings(main){
+  const s = appConfig.settings;
+  main.innerHTML = `
+    <div class="page-eyebrow">Reference</div>
+    <div class="page-title">Settings</div>
+    <div class="page-sub voice">Reminders only fire while this app is open in your browser.</div>
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Morning reminder</div>
+          <div class="settings-hint">Nudge to run the morning check-in.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="time" id="morningTime" value="${s.morningTime||'07:30'}">
+          <div class="toggle ${s.morningOn?'on':''}" id="morningToggle"><div class="knob"></div></div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Evening reminder</div>
+          <div class="settings-hint">Nudge to run the evening review.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="time" id="eveningTime" value="${s.eveningTime||'21:45'}">
+          <div class="toggle ${s.eveningOn?'on':''}" id="eveningToggle"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Business + personal domains</div>
+          <div class="settings-hint">Track morning and evening check-ins as separate business and personal threads, instead of one stream.</div>
+        </div>
+        <div class="toggle ${s.domainsEnabled?'on':''}" id="domainsToggle"><div class="knob"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Your data</div>
+          <div class="settings-hint">Every check-in, vision field, and note, in one plain-text file you can keep.</div>
+        </div>
+        <button class="ghost" id="exportBtn">Download</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Account</div>
+          <div class="settings-hint">${currentUser?.email || ''}</div>
+        </div>
+        <button class="ghost" id="signOutBtn">Sign out</button>
+      </div>
+    </div>
+    <div class="footnote">Browser notifications require permission and only work while this tab stays open — they won't fire if the app is closed or your computer is asleep. For a reliable daily nudge, a phone alarm is more dependable.</div>
+  `;
+  document.getElementById('exportBtn').onclick = ()=> exportUserData();
+  document.getElementById('signOutBtn').onclick = ()=> signOut();
+  document.getElementById('domainsToggle').onclick = async ()=>{
+    s.domainsEnabled = !s.domainsEnabled;
+    await saveConfig(); renderSettings(main);
+  };
+  document.getElementById('morningToggle').onclick = async (e)=>{
+    s.morningOn = !s.morningOn;
+    if(s.morningOn && 'Notification' in window) Notification.requestPermission();
+    await saveConfig(); renderSettings(main);
+  };
+  document.getElementById('eveningToggle').onclick = async ()=>{
+    s.eveningOn = !s.eveningOn;
+    if(s.eveningOn && 'Notification' in window) Notification.requestPermission();
+    await saveConfig(); renderSettings(main);
+  };
+  document.getElementById('morningTime').onchange = async (e)=>{ s.morningTime = e.target.value; await saveConfig(); };
+  document.getElementById('eveningTime').onchange = async (e)=>{ s.eveningTime = e.target.value; await saveConfig(); };
+}
+
+/* ============================= DATA EXPORT ============================= */
+function exportUserData(){
+  const lines = [];
+  lines.push('MENTAL CLARITY OS — YOUR DATA');
+  lines.push('Exported ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}));
+  lines.push('='.repeat(50));
+
+  const v = appConfig.vision || {};
+  if(v.twelveMonth || v.threeMonth || v.weekMission || v.why || v.identity){
+    lines.push('\nLONG-TERM DIRECTION\n' + '-'.repeat(30));
+    if(v.identity) lines.push('Identity: ' + v.identity);
+    if(v.twelveMonth) lines.push('12-month target: ' + v.twelveMonth);
+    if(v.threeMonth) lines.push('3-month focus: ' + v.threeMonth);
+    if(v.weekMission) lines.push("This week's mission: " + v.weekMission);
+    if(v.why) lines.push('Why this matters: ' + v.why);
+  }
+
+  const entries = Object.values(checkinsData).sort((a,b)=> a.date.localeCompare(b.date) || (a._loggedAt||'').localeCompare(b._loggedAt||''));
+  if(entries.length){
+    lines.push('\n\nCHECK-INS (' + entries.length + ')\n' + '='.repeat(50));
+    entries.forEach(e=>{
+      const flow = FLOWS[e.type];
+      const dateLabel = e.type==='monthly' ? fmtMonth(e.date) : fmtDate(e.date);
+      lines.push('\n' + dateLabel + ' — ' + flow.label + (e.domain ? ' (' + e.domain + ')' : ''));
+      lines.push('-'.repeat(30));
+      flow.questions.forEach(q=>{
+        if(e[q.key]) lines.push(q.label + ': ' + e[q.key]);
+      });
+      if(e._reflection) lines.push('Reflection: ' + e._reflection);
+    });
+  }
+
+  const notes = appConfig.notes || [];
+  if(notes.length){
+    lines.push('\n\nNOTES (' + notes.length + ')\n' + '='.repeat(50));
+    notes.slice().sort((a,b)=>a.ts.localeCompare(b.ts)).forEach(n=>{
+      lines.push('\n' + new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ': ' + n.text);
+    });
+  }
+
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mental-clarity-os-export-' + todayISO() + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 3000);
+}
+
+/* check reminders every 20s while app open */
+let firedReminders = { morning: null, evening: null };
+setInterval(()=>{
+  if(!storageReady) return;
+  const s = appConfig.settings;
+  const now = new Date();
+  const hhmm = now.toTimeString().slice(0,5);
+  const iso = todayISO();
+
+  if(s.morningOn && s.morningTime && hhmm >= s.morningTime && firedReminders.morning !== iso){
+    firedReminders.morning = iso;
+    if(!checkinsData['morning:'+iso]) fireNotification('Morning check-in', 'Set the standard before the day sets it for you.');
+  }
+  if(s.eveningOn && s.eveningTime && hhmm >= s.eveningTime && firedReminders.evening !== iso){
+    firedReminders.evening = iso;
+    if(!checkinsData['evening:'+iso]) fireNotification('Evening review', 'Close the day clean.');
+  }
+}, 20000);
+function fireNotification(title, body){
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification(title, { body });
+  }
+}
+
+/* ============================= UTIL ============================= */
+function escapeHtml(str){
+  if(!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* attach icon paths */
+function injectIcons(){
+  document.querySelectorAll('.navitem').forEach(()=>{});
+}
+
+/* ============================= AUTH ============================= */
+let authMode = 'signin'; // 'signin' | 'signup'
+function renderAuth(){
+  document.getElementById('sidebar').style.display = 'none';
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div id="authWrap">
+      <div class="auth-brand">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+          <path d="M3 20C7 20 8 6 13 6C17 6 15 16 19 16C21.5 16 22 12 22 12" stroke="#8B7CF6" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+          <circle cx="22" cy="12" r="2.4" fill="#B8A6FF"/>
+        </svg>
+        <div class="brand-text">Mental Clarity<span>Operating System</span></div>
+      </div>
+      <div class="auth-title">${authMode==='signin' ? 'Sign in' : 'Create your account'}</div>
+      <div class="auth-sub">${authMode==='signin' ? 'Pick up where you left off.' : 'One system, three minutes at a time.'}</div>
+
+      <div class="auth-field-label">Email</div>
+      <input class="auth-input" type="email" id="authEmail" placeholder="you@email.com" autocomplete="email">
+      <div class="auth-field-label">Password</div>
+      <input class="auth-input" type="password" id="authPassword" placeholder="••••••••" autocomplete="${authMode==='signin'?'current-password':'new-password'}">
+
+      <button class="primary" id="authBtn">${authMode==='signin' ? 'Sign in' : 'Create account'}</button>
+      <div id="authError" class="auth-error"></div>
+
+      <div class="auth-toggle">
+        ${authMode==='signin' ? "Don't have an account? " : 'Already have an account? '}
+        <button id="authToggleBtn">${authMode==='signin' ? 'Create one' : 'Sign in'}</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('authToggleBtn').onclick = ()=>{ authMode = authMode==='signin' ? 'signup' : 'signin'; renderAuth(); };
+  document.getElementById('authBtn').onclick = handleAuthSubmit;
+  document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') handleAuthSubmit(); });
+}
+async function handleAuthSubmit(){
+  const btn = document.getElementById('authBtn');
+  const errEl = document.getElementById('authError');
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  errEl.textContent = '';
+  if(!email || !password){ errEl.textContent = 'Enter both an email and password.'; return; }
+  btn.disabled = true;
+  btn.textContent = 'One sec...';
+
+  const { data, error } = authMode==='signin'
+    ? await supabase.auth.signInWithPassword({ email, password })
+    : await supabase.auth.signUp({ email, password });
+
+  if(error){
+    errEl.textContent = error.message;
+    btn.disabled = false;
+    btn.textContent = authMode==='signin' ? 'Sign in' : 'Create account';
+    return;
+  }
+  if(authMode==='signup' && !data.session){
+    errEl.textContent = 'Check your email to confirm your account, then sign in.';
+    btn.disabled = false;
+    btn.textContent = 'Create account';
+    authMode = 'signin';
+    return;
+  }
+  currentUser = data.user;
+  document.getElementById('sidebar').style.display = '';
+  await loadAll();
+  render();
+}
+function signOut(){
+  supabase.auth.signOut();
+  currentUser = null;
+  checkinsData = {};
+  appConfig = { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{} };
+  currentView = 'home';
+  authMode = 'signin';
+  renderAuth();
+}
+
+/* ============================= INIT ============================= */
+(async function init(){
+  document.getElementById('main').innerHTML = `<div style="padding-top:60px;color:var(--text-muted);font-size:13.5px;">Loading...</div>`;
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session){
+    currentUser = session.user;
+    await loadAll();
+    render();
+  }else{
+    renderAuth();
+  }
+})();
+</script>
+</body>
+</html>
