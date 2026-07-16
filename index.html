@@ -404,9 +404,9 @@ const ICONS = {
 
 /* ============================= STATE ============================= */
 // Fill these in from Supabase: Project Settings > API
-const SUPABASE_URL = 'https://lemztqpqnbqrbfdaqhmk.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_5ZHucPvwlXvWczS4kjewZA_dxj6f1Ct';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null;
 let checkinsData = {};   // { "morning:2026-07-09": {...}, "evening:2026-07-09": {...}, "weekly:2026-07-06": {...} }
@@ -440,7 +440,7 @@ function fmtMonth(iso){
 /* ============================= STORAGE (Supabase) ============================= */
 async function loadAll(){
   try{
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('user_data')
       .select('checkins, config')
       .eq('user_id', currentUser.id)
@@ -464,7 +464,7 @@ async function supabaseWriteWithRetry(column, value, attempts=3){
   let lastErr = null;
   for(let i=0;i<attempts;i++){
     try{
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('user_data')
         .update({ [column]: value })
         .eq('user_id', currentUser.id);
@@ -1628,8 +1628,8 @@ async function handleAuthSubmit(){
   btn.textContent = 'One sec...';
 
   const { data, error } = authMode==='signin'
-    ? await supabase.auth.signInWithPassword({ email, password })
-    : await supabase.auth.signUp({ email, password });
+    ? await supabaseClient.auth.signInWithPassword({ email, password })
+    : await supabaseClient.auth.signUp({ email, password });
 
   if(error){
     errEl.textContent = error.message;
@@ -1650,7 +1650,7 @@ async function handleAuthSubmit(){
   render();
 }
 function signOut(){
-  supabase.auth.signOut();
+  supabaseClient.auth.signOut();
   currentUser = null;
   checkinsData = {};
   appConfig = { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{} };
@@ -1662,7 +1662,7 @@ function signOut(){
 /* ============================= INIT ============================= */
 (async function init(){
   document.getElementById('main').innerHTML = `<div style="padding-top:60px;color:var(--text-muted);font-size:13.5px;">Loading...</div>`;
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if(session){
     currentUser = session.user;
     await loadAll();
