@@ -49,6 +49,7 @@ export default async function handler(req, res) {
     const data = await anthropicRes.json();
 
     if (!anthropicRes.ok) {
+      console.error('Anthropic API error:', anthropicRes.status, data.error);
       return res.status(anthropicRes.status).json({ error: data.error?.message || 'Claude API error' });
     }
 
