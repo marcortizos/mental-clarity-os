@@ -514,6 +514,10 @@ async function callClaude(system, userMsg){
     })
   });
   const data = await res.json();
+  if(!res.ok){
+    console.error('Claude API call failed:', res.status, data.error || data);
+    throw new Error(data.error || `Claude API request failed (${res.status})`);
+  }
   const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
   return text;
 }
@@ -877,13 +881,12 @@ function setupVoiceInput(taEl, btnEl){
       return;
     }
     activeRecognition = recognition;
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.onstart = ()=>{ listening = true; btnEl.classList.add('listening'); };
     recognition.onresult = (e)=>{
-      let transcript = '';
-      for(let i=0;i<e.results.length;i++){ transcript += e.results[i][0].transcript; }
+      const transcript = e.results[0][0].transcript;
       taEl.value = baseText + transcript;
     };
     recognition.onerror = (e)=>{
