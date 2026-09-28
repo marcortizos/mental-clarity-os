@@ -781,6 +781,30 @@ function renderHome(main){
 /* ============================= CHECKIN FLOW (morning/evening) ============================= */
 let flowState = {}; // { flow, index, answers:{key:{raw,refined}}, saving, phase }
 
+/* ---- Draft autosave: keeps an in-progress check-in if the tab closes, refreshes, or the phone locks ---- */
+function draftKey(storageKey){ return 'mcos_draft:' + (currentUser?.id || 'anon') + ':' + storageKey; }
+function saveDraft(){
+  try{
+    if(!flowState.flow || flowState.phase!=='asking') return;
+    localStorage.setItem(draftKey(flowState.flow), JSON.stringify({
+      index: flowState.index,
+      answers: flowState.answers,
+      draftText: flowState.draftText || '',
+      draftIndex: flowState.draftIndex,
+      savedAt: Date.now()
+    }));
+  }catch(e){}
+}
+function loadDraft(storageKey){
+  try{
+    const raw = localStorage.getItem(draftKey(storageKey));
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function clearDraft(storageKey){
+  try{ localStorage.removeItem(draftKey(storageKey)); }catch(e){}
+}
+
 function renderCheckinFlow(main, flowKey, weeklyDate=null){
   const flow = FLOWS[flowKey];
   const dateKey = weeklyDate || todayISO();
@@ -792,6 +816,15 @@ function renderCheckinFlow(main, flowKey, weeklyDate=null){
 
   if(!flowState.flow || flowState.flow!==storageKey){
     flowState = { flow: storageKey, flowKey, dateKey, domain, index:0, answers:{}, saving:false, phase: existing ? 'complete' : 'asking', reflection: existing ? existing._reflection : null };
+    if(!existing){
+      const draft = loadDraft(storageKey);
+      if(draft && draft.answers && Number.isInteger(draft.index) && draft.index < flow.questions.length){
+        flowState.index = draft.index;
+        flowState.answers = draft.answers;
+        flowState.draftText = draft.draftText || '';
+        flowState.draftIndex = draft.draftIndex;
+      }
+    }
   }
 
   if(existing && flowState.phase==='complete'){
@@ -824,7 +857,7 @@ function renderCheckinFlow(main, flowKey, weeklyDate=null){
     <div class="qcounter">Question ${flowState.index+1} of ${total}</div>
     <div class="qtext">${q.q}</div>
     <div class="answer-wrap">
-      <textarea class="answer" id="answerInput" placeholder="Answer in one or two sentences...">${flowState.answers[q.key]?.raw || ''}</textarea>
+      <textarea class="answer" id="answerInput" placeholder="Answer in one or two sentences...">${escapeHtml(flowState.answers[q.key]?.raw || (flowState.draftIndex===flowState.index ? (flowState.draftText||'') : ''))}</textarea>
       <button class="mic-btn" id="micBtn" type="button" title="Voice input" style="display:none;">
         <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2.5a2.8 2.8 0 012.8 2.8v4.4a2.8 2.8 0 01-5.6 0V5.3A2.8 2.8 0 0110 2.5z" fill="currentColor"/><path d="M5.5 9.5a4.5 4.5 0 009 0M10 14v3.5M7 17.5h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
@@ -841,6 +874,11 @@ function renderCheckinFlow(main, flowKey, weeklyDate=null){
   if(backBtn) backBtn.onclick = ()=>{ flowState.index--; renderCheckinFlow(main, flowKey, weeklyDate); };
   const ta = document.getElementById('answerInput');
   ta.focus();
+  ta.addEventListener('input', ()=>{
+    flowState.draftText = ta.value;
+    flowState.draftIndex = flowState.index;
+    saveDraft();
+  });
   ta.addEventListener('keydown', e=>{
     if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) handleNext(main, flowKey, weeklyDate);
   });
@@ -903,7 +941,7 @@ function setupVoiceInput(taEl, btnEl){
       };
       showVoiceError(messages[e.error] || "Voice input hit an error — try again, or just type.");
     };
-    recognition.onend = ()=>{ listening = false; btnEl.classList.remove('listening'); if(activeRecognition===recognition) activeRecognition = null; };
+    recognition.onend = ()=>{ listening = false; btnEl.classList.remove('listening'); if(activeRecognition===recognition) activeRecognition = null; taEl.dispatchEvent(new Event('input')); };
     try{
       recognition.start();
     }catch(e){
@@ -947,6 +985,8 @@ async function handleNext(main, flowKey, weeklyDate){
 
   if(flowState.index < flow.questions.length-1){
     flowState.index++;
+    flowState.draftText = '';
+    saveDraft();
     renderCheckinFlow(main, flowKey, weeklyDate);
   }else{
     await finishFlow(main, flowKey, weeklyDate);
@@ -971,6 +1011,7 @@ async function finishFlow(main, flowKey, weeklyDate){
 
   checkinsData[storageKey] = entry;
   await saveCheckins();
+  clearDraft(storageKey);
 
   flowState.phase = 'complete';
   flowState.reflection = reflection;
@@ -1000,6 +1041,7 @@ function renderCompleteView(main, flow, flowKey, entry, weeklyDate=null){
   document.getElementById('redoBtn').onclick = ()=>{
     const domain = entry.domain || 'personal';
     const key = flowKey+':'+entry.date + (domain==='business' ? ':business' : '');
+    clearDraft(key);
     flowState = { flow: key, flowKey, dateKey: entry.date, domain, index:0, answers:{}, saving:false, phase:'asking' };
     renderCheckinFlow(main, flowKey, weeklyDate);
   };
