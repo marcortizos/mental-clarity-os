@@ -525,17 +525,24 @@ async function refineAnswer(question, raw){
   if(!raw || !raw.trim()) return raw;
   const sys = PERSONA_PROMPT + `
 
-Task: The user just answered a check-in question. Respond ONLY with strict JSON and nothing else — no markdown fences, no preamble: {"refined": "..."}. Turn their raw answer into one tight, concrete one-line entry, under 20 words, written in this OS's calm, direct, no-hype voice, in first person. Do not add advice or commentary. Just crystallize what they said.`;
+Task: The user just answered a check-in question. Respond ONLY with strict JSON and nothing else — no markdown fences, no preamble: {"refined": "..."}. Turn their raw answer into one tight, concrete one-line entry, under 20 words, written in this OS's calm, direct, no-hype voice, in first person. Always return a complete, grammatically correct sentence, even when the answer is only a word or two: fix slang, fragments, filler words, and spelling (for example \"kinda tired\" becomes \"I'm tired this morning.\"). Keep their exact meaning and never invent facts, goals, or details they didn't give. Do not add advice or commentary.`;
   const msg = `Question: ${question}\nRaw answer: ${raw}`;
+  lastRefineError = null;
   try{
     let text = await callClaude(sys, msg);
     text = text.replace(/```json|```/g,'').trim();
-    const parsed = JSON.parse(text);
-    return parsed.refined || raw.trim();
+    const start = text.indexOf('{'), end = text.lastIndexOf('}');
+    if(start === -1 || end === -1) throw new Error('AI reply was not in the expected format');
+    const parsed = JSON.parse(text.slice(start, end+1));
+    if(!parsed.refined) throw new Error('AI reply had no refined text');
+    return parsed.refined;
   }catch(e){
+    lastRefineError = e.message || 'Unknown error';
+    console.error('refineAnswer failed:', e);
     return raw.trim();
   }
 }
+let lastRefineError = null;
 async function getReflection(flowLabel, qaPairs){
   const sys = PERSONA_PROMPT + `
 
@@ -980,8 +987,13 @@ async function handleNext(main, flowKey, weeklyDate){
   const refined = await refineAnswer(q.q, raw);
   flowState.answers[q.key] = { raw, refined };
 
-  statusArea.innerHTML = `<div class="refined-preview"><div class="lbl">Logged as</div>${escapeHtml(refined)}</div>`;
-  await new Promise(r=>setTimeout(r, 550));
+  if(lastRefineError){
+    statusArea.innerHTML = `<div class="refined-preview"><div class="lbl">Saved as typed — AI cleanup unavailable</div>${escapeHtml(refined)}<div style="font-size:11px;opacity:.7;margin-top:8px;">Reason: ${escapeHtml(lastRefineError)}</div></div>`;
+    await new Promise(r=>setTimeout(r, 2500));
+  }else{
+    statusArea.innerHTML = `<div class="refined-preview"><div class="lbl">Logged as</div>${escapeHtml(refined)}</div>`;
+    await new Promise(r=>setTimeout(r, 550));
+  }
 
   if(flowState.index < flow.questions.length-1){
     flowState.index++;
