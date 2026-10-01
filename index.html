@@ -1698,65 +1698,55 @@ async function handleAuthSubmit(){
   btn.disabled = true;
   btn.textContent = 'One sec...';
 
-  // New signups need EITHER a valid access code (normal path for anyone
-  // who bought through Stan Store) OR to be on the manual approved list
-  // (for comped/free accounts added by hand). Existing users signing
-  // back in skip this entirely.
+  // Signup now goes through a server-side endpoint that creates the
+  // account already confirmed -- this no longer depends on the
+  // project's "Confirm email" setting at all, since that setting has
+  // proven unreliable to toggle via the dashboard. The endpoint checks
+  // the access code (normal path for Stan Store buyers) or the manual
+  // allowed_emails list (for comped accounts) before creating anything.
   if(authMode === 'signup'){
-    let approved = false;
-
     try {
-      const codeRes = await fetch('/api/verify-code', {
+      const createRes = await fetch('/api/create-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ email, password, code })
       });
-      const codeData = await codeRes.json();
-      if(codeRes.ok && codeData.valid) approved = true;
-    } catch(e) {
-      console.error('Code check failed:', e);
-      // fall through to the allowlist check below
-    }
-
-    if(!approved){
-      const { data: allowedRows, error: allowedErr } = await supabaseClient
-        .from('allowed_emails')
-        .select('email')
-        .ilike('email', email);
-
-      if(allowedErr){
-        console.error('Allowed-email check failed:', allowedErr);
-        errEl.textContent = 'Something went wrong checking access. Try again in a moment.';
+      const createData = await createRes.json();
+      if(!createRes.ok){
+        errEl.textContent = createData.error || 'Something went wrong creating your account.';
         btn.disabled = false;
         btn.textContent = 'Create account';
         return;
       }
-      if(allowedRows && allowedRows.length > 0) approved = true;
-    }
-
-    if(!approved){
-      errEl.textContent = "That access code didn't match, and this email isn't on the approved list. Check your confirmation email, or reach out to marcortiz.ai@gmail.com.";
+    } catch(e){
+      console.error('Account creation failed:', e);
+      errEl.textContent = 'Something went wrong. Try again in a moment.';
       btn.disabled = false;
       btn.textContent = 'Create account';
       return;
     }
+
+    // Account exists and is already confirmed -- sign in immediately.
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if(error){
+      errEl.textContent = error.message;
+      btn.disabled = false;
+      btn.textContent = 'Create account';
+      return;
+    }
+    currentUser = data.user;
+    document.getElementById('sidebar').style.display = '';
+    await loadAll();
+    render();
+    return;
   }
 
-  const { data, error } = authMode==='signin'
-    ? await supabaseClient.auth.signInWithPassword({ email, password })
-    : await supabaseClient.auth.signUp({ email, password });
-
+  // Sign-in path for existing users -- unchanged.
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if(error){
     errEl.textContent = error.message;
     btn.disabled = false;
-    btn.textContent = authMode==='signin' ? 'Sign in' : 'Create account';
-    return;
-  }
-  if(authMode==='signup' && !data.session){
-    errEl.textContent = 'Check your email to confirm your account, then sign in.';
-    btn.disabled = false;
-    btn.textContent = 'Create account';
-    authMode = 'signin';
+    btn.textContent = 'Sign in';
     return;
   }
   currentUser = data.user;
