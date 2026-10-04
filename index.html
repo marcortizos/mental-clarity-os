@@ -177,6 +177,12 @@
   .entry-summary{margin-top:20px;}
   .entry-row{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:13.5px;}
   .entry-row:last-child{border-bottom:none;}
+  .focus-box{border:1px solid var(--border-soft);border-radius:10px;padding:16px 20px;margin:18px 0;}
+  .focus-label{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;}
+  .focus-item{font-size:14px;color:var(--text);line-height:1.6;}
+  .focus-item + .focus-item{margin-top:8px;}
+  .focus-item .k{display:block;font-size:11.5px;color:var(--text-faint);margin-bottom:2px;}
+  .next-line{margin-top:22px;color:var(--text-muted);font-size:13.5px;line-height:1.6;}
   .entry-row .k{color:var(--text-faint);flex-shrink:0;width:150px;}
   .entry-row .v{color:var(--text);text-align:right;}
 
@@ -1042,6 +1048,23 @@ function renderCompleteView(main, flow, flowKey, entry, weeklyDate=null){
     <div class="entry-row"><div class="k">${q.label}</div><div class="v">${escapeHtml(entry[q.key])}</div></div>
   `).join('');
 
+  // Today's focus: the morning must-do and top priority, shown back in the user's own words.
+  const focusItems = [];
+  if(flowKey==='morning'){
+    if(entry.mustDo) focusItems.push(`<div class="focus-item"><span class="k">Must-do</span>${escapeHtml(entry.mustDo)}</div>`);
+    if(entry.priority) focusItems.push(`<div class="focus-item"><span class="k">Top priority</span>${escapeHtml(entry.priority)}</div>`);
+  }
+  const focusHtml = focusItems.length
+    ? `<div class="focus-box"><div class="focus-label">Today's focus</div>${focusItems.join('')}</div>`
+    : '';
+  const closingLines = {
+    morning: "You're set for today. Come back tonight for your evening review.",
+    evening: "Day closed. See you in the morning.",
+    weekly: "Week closed.",
+    monthly: "Month closed."
+  };
+  const closingLine = closingLines[flowKey] || '';
+
   const periodLabel = flowKey==='monthly' ? fmtMonth(entry.date) : (weeklyDate ? 'week of '+fmtDateShort(weeklyDate) : fmtDate(entry.date));
   main.innerHTML = `
     <div class="page-eyebrow">${flow.label}</div>
@@ -1051,12 +1074,16 @@ function renderCompleteView(main, flow, flowKey, entry, weeklyDate=null){
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#8B7CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <div class="reflection-box">${escapeHtml(entry._reflection || '')}</div>
+      ${focusHtml}
       <div class="entry-summary">${rows}</div>
+      <div class="next-line">${closingLine}</div>
       <div class="btnrow">
+        <button class="primary" id="doneBtn">Back to dashboard</button>
         <button class="ghost" id="redoBtn">Redo this entry</button>
       </div>
     </div>
   `;
+  document.getElementById('doneBtn').onclick = ()=>{ currentView = 'home'; render(); };
   document.getElementById('redoBtn').onclick = ()=>{
     const domain = entry.domain || 'personal';
     const key = flowKey+':'+entry.date + (domain==='business' ? ':business' : '');
