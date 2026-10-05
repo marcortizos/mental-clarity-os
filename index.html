@@ -183,6 +183,23 @@
   .focus-item + .focus-item{margin-top:8px;}
   .focus-item .k{display:block;font-size:11.5px;color:var(--text-faint);margin-bottom:2px;}
   .next-line{margin-top:22px;color:var(--text-muted);font-size:13.5px;line-height:1.6;}
+  /* Soft fade-ins: each question, and the end-of-check-in screen in sequence */
+  @keyframes mcosFadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .qcounter,.qtext,.answer-wrap{animation:mcosFadeUp .28s ease both;}
+  .qtext{animation-delay:.04s;}
+  .answer-wrap{animation-delay:.08s;}
+  .complete-wrap .reflection-box{animation:mcosFadeUp .4s ease both;}
+  .complete-wrap .focus-box{animation:mcosFadeUp .4s ease .25s both;}
+  .complete-wrap .entry-summary,.complete-wrap .next-line{animation:mcosFadeUp .4s ease .45s both;}
+  @media (prefers-reduced-motion:reduce){
+    .qcounter,.qtext,.answer-wrap,.complete-wrap .reflection-box,.complete-wrap .focus-box,.complete-wrap .entry-summary,.complete-wrap .next-line{animation:none !important;}
+  }
+  .install-nudge{border:1px solid var(--border-soft);border-radius:12px;padding:16px 20px;margin-top:22px;display:flex;gap:16px;align-items:center;justify-content:space-between;}
+  .install-nudge .in-title{font-size:14px;color:var(--text);margin-bottom:4px;}
+  .install-nudge .in-desc{font-size:13px;color:var(--text-muted);line-height:1.5;}
+  .install-nudge button{flex-shrink:0;}
+  .feedback-line{margin-top:28px;font-size:12.5px;color:var(--text-faint);}
+  .feedback-line a,.sidebar-footer a{color:var(--text-muted);text-decoration:underline;}
   .entry-row .k{color:var(--text-faint);flex-shrink:0;width:150px;}
   .entry-row .v{color:var(--text);text-align:right;}
 
@@ -305,7 +322,7 @@
     <div class="brand-text">Mental Clarity<span>Operating System</span></div>
   </div>
   <nav id="nav"></nav>
-  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.</div>
+  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.<br><a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback">Send feedback</a></div>
 </div>
 
 <div id="main"></div>
@@ -740,9 +757,31 @@ async function finishOnboarding(main, goToCheckin, clickedBtn){
 }
 
 /* ============================= HOME ============================= */
+/* Install nudge: shown once on phones when the app isn't already installed to the home screen */
+function shouldShowInstallNudge(){
+  try{
+    if(localStorage.getItem('mcos_install_nudge_dismissed')) return false;
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if(standalone) return false;
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  }catch(e){ return false; }
+}
+function installNudgeHtml(){
+  if(!shouldShowInstallNudge()) return '';
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const how = isIOS ? 'In Safari, tap Share, then Add to Home Screen.' : 'Open your browser menu, then tap Add to Home screen.';
+  return `<div class="install-nudge" id="installNudge"><div><div class="in-title">Put this on your home screen</div><div class="in-desc">${how} It opens like an app.</div></div><button class="ghost" id="installDismiss" type="button">Not now</button></div>`;
+}
+
 function renderHome(main){
   const iso = todayISO();
   const mDone = !!checkinsData['morning:'+iso];
+  // Today's focus: this morning's must-do and top priority, kept on the dashboard all day
+  const mEntry = checkinsData['morning:'+iso];
+  const focusParts = [];
+  if(mEntry && mEntry.mustDo) focusParts.push(`<div class="focus-item"><span class="k">Must-do</span>${escapeHtml(mEntry.mustDo)}</div>`);
+  if(mEntry && mEntry.priority) focusParts.push(`<div class="focus-item"><span class="k">Top priority</span>${escapeHtml(mEntry.priority)}</div>`);
+  const todayFocusHtml = focusParts.length ? `<div class="focus-box"><div class="focus-label">Today's focus</div>${focusParts.join('')}</div>` : '';
   const eDone = !!checkinsData['evening:'+iso];
   const streak = computeStreak();
   const totalLogged = Object.keys(checkinsData).length;
@@ -755,6 +794,7 @@ function renderHome(main){
     <div class="page-eyebrow">${new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'})}</div>
     <div class="page-title">Today's standard</div>
     <div class="page-sub voice">Results come from consistency, not customization.</div>
+    ${todayFocusHtml}
 
     <div class="stat-row">
       <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value">${streak} <small>day${streak===1?'':'s'}</small></div></div>
@@ -795,7 +835,14 @@ function renderHome(main){
         <div class="flow-card-desc">Zoom out on the zoom-out once you've logged 4 weeks.</div>
       </div>
     </div>
+    ${installNudgeHtml()}
+    <div class="feedback-line">Something confusing or broken? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback">Send feedback</a></div>
   `;
+  const nudgeBtn = document.getElementById('installDismiss');
+  if(nudgeBtn) nudgeBtn.onclick = ()=>{
+    try{ localStorage.setItem('mcos_install_nudge_dismissed','1'); }catch(e){}
+    const n = document.getElementById('installNudge'); if(n) n.remove();
+  };
 }
 
 /* ============================= CHECKIN FLOW (morning/evening) ============================= */
