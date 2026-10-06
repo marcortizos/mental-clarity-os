@@ -200,20 +200,37 @@
   .install-nudge button{flex-shrink:0;}
   .feedback-line{margin-top:28px;font-size:12.5px;color:var(--text-faint);}
   .feedback-line a,.sidebar-footer a{color:var(--text-muted);text-decoration:underline;}
-  /* Logo loading mark: draws in once, then pulses softly while the app loads */
+  .auth-forgot{margin-top:14px;font-size:12.5px;color:var(--text-faint);line-height:1.5;}
+  .auth-forgot a,.settings-hint a{color:var(--text-muted);text-decoration:underline;}
+  /* Logo loading mark: blurs in, draws, then pulses softly until the app is ready */
   .boot{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18vh;}
   .boot svg{display:block;}
-  .boot .boot-line{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:mcosDraw .6s ease forwards;}
-  .boot .boot-dot{opacity:0;animation:mcosDot .25s ease .5s forwards;}
-  .boot .boot-mark{animation:mcosPulse 1.8s ease-in-out .9s infinite;}
-  .boot-text{font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);}
+  .boot .boot-mark{animation:mcosLogoIn 1s cubic-bezier(.22,.61,.36,1) both, mcosPulse 1.8s ease-in-out 2.2s infinite;}
+  .boot .boot-line{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:mcosDraw 1.2s ease-in-out .25s forwards;}
+  .boot .boot-dot{opacity:0;animation:mcosDot .35s ease 1.3s forwards;}
+  .boot-text{font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);opacity:0;animation:mcosDot .8s ease .7s forwards;}
+  .boot.out{animation:mcosBlurOut .38s ease forwards;}
+  @keyframes mcosLogoIn{from{opacity:0;filter:blur(14px);transform:scale(.94);}to{opacity:1;filter:none;transform:none;}}
+  @keyframes mcosBlurOut{to{opacity:0;filter:blur(12px);transform:scale(1.03);}}
   @keyframes mcosDraw{0%{stroke-dashoffset:1;opacity:0;}8%{opacity:1;}100%{stroke-dashoffset:0;opacity:1;}}
   @keyframes mcosDot{to{opacity:1;}}
   @keyframes mcosPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+  /* Dashboard: sections blur in one after another when you arrive on it */
+  @keyframes mcosBlurIn{from{opacity:0;filter:blur(14px);transform:translateY(10px);}to{opacity:1;filter:none;transform:none;}}
+  #main.blur-in > *{animation:mcosBlurIn .9s cubic-bezier(.22,.61,.36,1) backwards;}
+  #main.blur-in > *:nth-child(2){animation-delay:.07s;}
+  #main.blur-in > *:nth-child(3){animation-delay:.14s;}
+  #main.blur-in > *:nth-child(4){animation-delay:.21s;}
+  #main.blur-in > *:nth-child(5){animation-delay:.28s;}
+  #main.blur-in > *:nth-child(6){animation-delay:.35s;}
+  #main.blur-in > *:nth-child(7){animation-delay:.42s;}
+  #main.blur-in > *:nth-child(8){animation-delay:.49s;}
+  #main.blur-in > *:nth-child(9){animation-delay:.56s;}
   @media (prefers-reduced-motion:reduce){
+    .boot .boot-mark,.boot.out{animation:none;}
     .boot .boot-line{animation:none;stroke-dashoffset:0;opacity:1;}
-    .boot .boot-dot{animation:none;opacity:1;}
-    .boot .boot-mark{animation:none;}
+    .boot .boot-dot,.boot-text{animation:none;opacity:1;}
+    #main.blur-in > *{animation:none !important;}
   }
   .entry-row .k{color:var(--text-faint);flex-shrink:0;width:150px;}
   .entry-row .v{color:var(--text);text-align:right;}
@@ -337,7 +354,7 @@
     <div class="brand-text">Mental Clarity<span>Operating System</span></div>
   </div>
   <nav id="nav"></nav>
-  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.<br><a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback">Send feedback</a></div>
+  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.<br><a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a></div>
 </div>
 
 <div id="main"></div>
@@ -400,7 +417,7 @@ const FLOWS = {
   },
   monthly: {
     label:'Monthly review', short:'Monthly', color:'monthly',
-    desc:'Unlocks after 4 weekly reviews. Zoom out on the zoom-out.',
+    desc:'Unlocks after 4 weekly reviews. Zoom out across the month.',
     questions:[
       {key:'pattern', label:'Pattern this month', q:'What pattern defined this month?'},
       {key:'structural', label:'Structural change', q:'What structural change actually moved my life forward, and what did I only talk about?'},
@@ -692,6 +709,8 @@ function renderNav(){
 
 function render(){
   stopActiveRecognition();
+  const mainEl = document.getElementById('main');
+  if(mainEl) mainEl.classList.remove('blur-in');
   if(!appConfig.onboardingComplete){
     document.getElementById('main').innerHTML = '';
     renderOnboarding(document.getElementById('main'));
@@ -717,7 +736,7 @@ function render(){
 let onboardStep = 0;
 const ONBOARD_SCREENS = [
   { eyebrow:'Before you start', title:"This isn't therapy. It's infrastructure.",
-    body:"Mental Clarity OS runs on five questions, three times a day. <strong>Morning sets the standard. Evening closes it.</strong> Weekly and monthly show you the pattern. That's the whole system." },
+    body:"Mental Clarity OS runs on five questions in the morning and four in the evening. <strong>Morning sets the standard. Evening closes it.</strong> Weekly and monthly show you the pattern. That's the whole system." },
   { eyebrow:'How it works', title:'One line per answer.',
     body:"Write in fragments if you want. Every answer gets tightened into one clear sentence before it's logged — <strong>that's not your job.</strong> The goal isn't to journal. It's to see clearly, fast." },
   { eyebrow:'How it unlocks', title:'Days build weeks. Weeks build months.',
@@ -847,12 +866,13 @@ function renderHome(main){
           <div class="flow-card-title">Monthly review</div>
           <div class="flow-status ${isMonthlyUnlocked(mk)?'done':'pending'}">${isMonthlyUnlocked(mk)?'Unlocked':monthCount+'/4'}</div>
         </div>
-        <div class="flow-card-desc">Zoom out on the zoom-out once you've logged 4 weeks.</div>
+        <div class="flow-card-desc">Zoom out across the month once you've logged 4 weeks.</div>
       </div>
     </div>
     ${installNudgeHtml()}
-    <div class="feedback-line">Something confusing or broken? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback">Send feedback</a></div>
+    <div class="feedback-line">Something confusing or broken? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a></div>
   `;
+  main.classList.add('blur-in');
   const nudgeBtn = document.getElementById('installDismiss');
   if(nudgeBtn) nudgeBtn.onclick = ()=>{
     try{ localStorage.setItem('mcos_install_nudge_dismissed','1'); }catch(e){}
@@ -1523,7 +1543,7 @@ function renderPrivacy(main){
         <li>Nobody sees your answers but you &mdash; not other users, not a public feed, not a leaderboard.</li>
         <li>Marc doesn't see what you log unless you choose to share it, for example on a 1:1 setup call.</li>
         <li>There's no social layer here, and there isn't going to be one added later. This isn't built for performing self-improvement publicly.</li>
-        <li>Your data belongs to you. You can export or delete it at any time from Settings.</li>
+        <li>Your data belongs to you. Export it from Settings any time. To delete it, <a href="mailto:marcortiz.ai@gmail.com?subject=Delete%20my%20data" data-mail="Delete my data" title="marcortiz.ai@gmail.com">email us</a>.</li>
       </ul>
     </div>
   `;
@@ -1613,7 +1633,7 @@ function renderSettings(main){
       <div class="settings-row">
         <div>
           <div class="settings-label">Your data</div>
-          <div class="settings-hint">Every check-in, vision field, and note, in one plain-text file you can keep.</div>
+          <div class="settings-hint">Every check-in, vision field, and note, in one plain-text file you can keep. To delete your data, <a href="mailto:marcortiz.ai@gmail.com?subject=Delete%20my%20data" data-mail="Delete my data" title="marcortiz.ai@gmail.com">email us</a>.</div>
         </div>
         <button class="ghost" id="exportBtn">Download</button>
       </div>
@@ -1763,6 +1783,7 @@ function renderAuth(){
 
       <button class="primary" id="authBtn">${authMode==='signin' ? 'Sign in' : 'Create account'}</button>
       <div id="authError" class="auth-error"></div>
+      ${authMode==='signin' ? `<div class="auth-forgot">Forgot your password? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20password" data-mail="Mental Clarity OS password" title="marcortiz.ai@gmail.com">Email us</a> and we'll help you get back in.</div>` : ''}
 
       <div class="auth-toggle">
         ${authMode==='signin' ? "Don't have an account? " : 'Already have an account? '}
@@ -1825,8 +1846,10 @@ async function handleAuthSubmit(){
     }
     currentUser = data.user;
     document.getElementById('sidebar').style.display = '';
+    const bootStartUp = Date.now();
     showBoot();
     await loadAll();
+    await finishBoot(bootStartUp);
     render();
     return;
   }
@@ -1841,8 +1864,10 @@ async function handleAuthSubmit(){
   }
   currentUser = data.user;
   document.getElementById('sidebar').style.display = '';
+  const bootStartIn = Date.now();
   showBoot();
   await loadAll();
+  await finishBoot(bootStartIn);
   render();
 }
 function signOut(){
@@ -1856,6 +1881,23 @@ function signOut(){
 }
 
 /* ============================= INIT ============================= */
+/* Contact links: on a computer, open a Gmail compose tab (a mail app often isn't set up there);
+   on phones and tablets, let the mailto link open their mail app. */
+function isPhoneOrTablet(){
+  try{
+    if(window.matchMedia) return window.matchMedia('(pointer: coarse)').matches;
+  }catch(e){}
+  return (navigator.maxTouchPoints || 0) > 0;
+}
+document.addEventListener('click', (e)=>{
+  const a = e.target && e.target.closest ? e.target.closest('a[data-mail]') : null;
+  if(!a) return;
+  if(isPhoneOrTablet()) return;
+  e.preventDefault();
+  const url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent('marcortiz.ai@gmail.com') + '&su=' + encodeURIComponent(a.dataset.mail);
+  window.open(url, '_blank', 'noopener');
+});
+
 /* Loading screen: the wave mark draws in, then pulses until the app is ready */
 function bootHtml(){
   return `<div class="boot"><svg class="boot-mark" width="56" height="56" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path class="boot-line" pathLength="1" d="M3 20C7 20 8 6 13 6C17 6 15 16 19 16C21.5 16 22 12 22 12" stroke="#8B7CF6" stroke-width="1.6" stroke-linecap="round" fill="none"/><circle class="boot-dot" cx="22" cy="12" r="2.4" fill="#B8A6FF"/></svg><div class="boot-text">Loading</div></div>`;
@@ -1864,15 +1906,31 @@ function showBoot(){
   const m = document.getElementById('main');
   if(m) m.innerHTML = bootHtml();
 }
+function prefersReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; }
+}
+function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+// Keep the logo on screen long enough to be seen (BOOT_MIN_MS), then blur it out before the next screen appears.
+const BOOT_MIN_MS = 1900;
+async function finishBoot(startedAt){
+  if(prefersReducedMotion()) return;
+  const elapsed = Date.now() - startedAt;
+  if(elapsed < BOOT_MIN_MS) await wait(BOOT_MIN_MS - elapsed);
+  const b = document.querySelector('.boot');
+  if(b){ b.classList.add('out'); await wait(380); }
+}
 
 (async function init(){
+  const bootStart = Date.now();
   showBoot();
   const { data: { session } } = await supabaseClient.auth.getSession();
   if(session){
     currentUser = session.user;
     await loadAll();
+    await finishBoot(bootStart);
     render();
   }else{
+    await finishBoot(bootStart);
     renderAuth();
   }
 })();
