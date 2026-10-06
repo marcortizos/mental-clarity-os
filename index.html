@@ -232,6 +232,50 @@
   .howto-body p{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;}
   .howto-body strong{color:var(--text);font-weight:600;}
   .howto-body .howto-tip{color:var(--text-faint);margin-bottom:0;}
+
+  /* ---------- desktop polish: matches the site (violet gradient + thin violet border on the active item) ---------- */
+  .brand svg{width:30px;height:30px;filter:drop-shadow(0 0 10px rgba(139,124,246,0.45));transition:filter .25s ease;}
+  .brand:hover svg{filter:drop-shadow(0 0 14px rgba(139,124,246,0.75));}
+  .brand-text{font-weight:700;letter-spacing:-0.01em;}
+  .navgroup-label{padding:20px 12px 8px;}
+  .navitem{padding:7px 10px;border-radius:12px;gap:12px;transition:background .2s,color .2s,box-shadow .2s;}
+  .navitem:hover{background:rgba(255,255,255,0.05);}
+  .navitem.active{background:linear-gradient(135deg,rgba(139,124,246,0.16),rgba(139,124,246,0.05));box-shadow:inset 0 0 0 1px rgba(139,124,246,0.35);}
+  .navicon-wrap{width:30px;height:30px;border-radius:9px;align-items:center;justify-content:center;transition:background .2s;}
+  .navitem:hover .navicon-wrap{background:rgba(255,255,255,0.05);}
+  .navitem.active .navicon-wrap{background:rgba(139,124,246,0.18);}
+  .navicon{stroke-width:1.5;transition:color .2s;}
+  @media (min-width:861px){
+    #sidebar{width:236px;}
+    #main{margin:0 auto;}
+  }
+  @media (max-width:860px){
+    #sidebar .navicon-wrap{width:auto;height:auto;border-radius:0;background:none !important;}
+    #sidebar .navitem{border-radius:10px;}
+    #sidebar .brand svg{width:24px;height:24px;}
+  }
+
+  /* ---------- delete my data: warning dialog ---------- */
+  button.danger{background:#2A1A22;color:#F0B8C4;border:1px solid #6B3B4A;font-size:13.5px;font-weight:600;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--font-body);transition:all .12s;}
+  button.danger:hover{background:#34202A;border-color:#8A4A5C;}
+  button.danger:disabled{opacity:0.4;cursor:not-allowed;}
+  #deleteDataBtn{white-space:nowrap;flex-shrink:0;}
+  .modal-overlay{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,4,10,0.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:mcosFade .2s ease;}
+  .modal{width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px;box-shadow:0 30px 80px rgba(0,0,0,0.6);animation:mcosModalIn .25s ease;}
+  .modal-icon{width:44px;height:44px;border-radius:50%;background:#2A1A22;border:1px solid #6B3B4A;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#F0B8C4;}
+  .modal-title{font-family:var(--font-display);font-size:19px;font-weight:600;margin-bottom:10px;}
+  .modal-body p{font-size:13.5px;color:var(--text-muted);line-height:1.6;margin-bottom:10px;}
+  .modal-body strong{color:var(--text);}
+  .modal-body .modal-warn{padding:10px 12px;border-radius:8px;background:#2A1A22;border:1px solid #6B3B4A;color:#F0B8C4;}
+  .modal-body .modal-warn strong{color:#F0B8C4;}
+  .modal-label{display:block;margin:16px 0 8px;font-size:12.5px;color:var(--text-muted);}
+  .modal .nn-input{width:100%;}
+  .modal-body .modal-fine{font-size:12px;color:var(--text-faint);margin-top:12px;}
+  .modal-fine a{color:var(--text-muted);text-decoration:underline;}
+  .modal .btnrow{justify-content:flex-end;}
+  @keyframes mcosFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes mcosModalIn{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:none;}}
+  @media (prefers-reduced-motion:reduce){.modal-overlay,.modal{animation:none;}}
   .nn-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
   .nn-head .rule-group-title{margin:0;}
   .nn-row{display:flex;gap:10px;align-items:flex-start;padding:5px 0;}
@@ -257,10 +301,10 @@
   /* Logo loading mark: blurs in, draws, then pulses softly until the app is ready */
   .boot{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18vh;}
   .boot svg{display:block;}
-  .boot .boot-mark{animation:mcosLogoIn 1s cubic-bezier(.22,.61,.36,1) both, mcosPulse 1.8s ease-in-out 2.2s infinite;}
-  .boot .boot-line{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:mcosDraw 1.2s ease-in-out .25s forwards;}
-  .boot .boot-dot{opacity:0;animation:mcosDot .35s ease 1.3s forwards;}
-  .boot-text{font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);opacity:0;animation:mcosDot .8s ease .7s forwards;}
+  .boot .boot-mark{animation:mcosLogoIn .8s cubic-bezier(.22,.61,.36,1) both, mcosPulse 1.8s ease-in-out 1.6s infinite;}
+  .boot .boot-line{stroke-dasharray:1;stroke-dashoffset:1;opacity:0;animation:mcosDraw .9s ease-in-out .2s forwards;}
+  .boot .boot-dot{opacity:0;animation:mcosDot .3s ease .95s forwards;}
+  .boot-text{font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);opacity:0;animation:mcosDot .6s ease .5s forwards;}
   .boot.out{animation:mcosBlurOut .38s ease forwards;}
   @keyframes mcosLogoIn{from{opacity:0;filter:blur(14px);transform:scale(.94);}to{opacity:1;filter:none;transform:none;}}
   @keyframes mcosBlurOut{to{opacity:0;filter:blur(12px);transform:scale(1.03);}}
@@ -343,7 +387,13 @@
   .settings-row:last-child{border-bottom:none;}
   .settings-label{font-size:13.5px;color:var(--text);font-weight:500;}
   .settings-hint{font-size:12px;color:var(--text-faint);margin-top:3px;}
-  input[type=time]{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-family:var(--font-body);font-size:13px;}
+  input[type=time]{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0 10px;height:36px;min-width:112px;color:var(--text);font-family:var(--font-body);font-size:13px;color-scheme:dark;font-variant-numeric:tabular-nums;}
+  input[type=time]:focus{outline:none;border-color:var(--accent-dim);}
+  .settings-section{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-faint);font-weight:600;margin:30px 0 10px 2px;}
+  .settings-section.first{margin-top:24px;}
+  .card.settings-card{padding:2px 22px;}
+  .settings-row{gap:16px;}
+  .settings-card + .footnote{margin:10px 2px 0;}
   .toggle{width:38px;height:22px;border-radius:20px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:background .15s;}
   .toggle.on{background:var(--accent-dim);}
   .toggle .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text-faint);transition:left .15s, background .15s;}
@@ -1752,7 +1802,7 @@ function renderPrivacy(main){
         <li>Nobody sees your answers but you &mdash; not other users, not a public feed, not a leaderboard.</li>
         <li>Marc doesn't see what you log unless you choose to share it, for example on a 1:1 setup call.</li>
         <li>There's no social layer here, and there isn't going to be one added later. This isn't built for performing self-improvement publicly.</li>
-        <li>Your data belongs to you. Export it from Settings any time. To delete it, <a href="mailto:marcortiz.ai@gmail.com?subject=Delete%20my%20data" data-mail="Delete my data" title="marcortiz.ai@gmail.com">email us</a>.</li>
+        <li>Your data belongs to you. Export it from Settings any time, and delete it there whenever you want. Deleted data can't be recovered.</li>
       </ul>
     </div>
   `;
@@ -1801,13 +1851,111 @@ function renderNotes(main){
 }
 
 /* ============================= SETTINGS ============================= */
+/* ---------- Delete my data ---------- */
+let deleteBusy = false;
+const WARN_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>';
+const DONE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+function freshAppConfig(){
+  return { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{}, nonNegotiables: defaultNonNegotiables() };
+}
+function clearAllLocalDrafts(){
+  try{
+    const prefix = 'mcos_draft:' + (currentUser && currentUser.id ? currentUser.id : 'anon') + ':';
+    Object.keys(localStorage).filter(k=>k.startsWith(prefix)).forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+function deleteModalKeydown(e){ if(e.key==='Escape' && !deleteBusy) closeDeleteDataModal(); }
+function closeDeleteDataModal(){
+  const m = document.getElementById('deleteModal');
+  if(m) m.remove();
+  document.removeEventListener('keydown', deleteModalKeydown);
+}
+// Erases the user's stored check-ins and settings. Their sign-in stays, so they can start fresh.
+async function performDeleteAllData(){
+  const ok1 = await supabaseWriteWithRetry('checkins', {});
+  if(!ok1) return { ok:false, stage:'checkins' };
+  checkinsData = {};
+  const ok2 = await supabaseWriteWithRetry('config', {});
+  if(!ok2) return { ok:false, stage:'config' };
+  clearAllLocalDrafts();
+  appConfig = freshAppConfig();
+  return { ok:true };
+}
+function openDeleteDataModal(){
+  closeDeleteDataModal();
+  deleteBusy = false;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'deleteModal';
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delTitle">
+      <div class="modal-icon">${WARN_ICON}</div>
+      <div class="modal-title" id="delTitle">Delete all your data?</div>
+      <div class="modal-body">
+        <p>This permanently erases every check-in, review, note, vision field and setting in your account.</p>
+        <p class="modal-warn"><strong>This can't be undone, and it can't be recovered.</strong></p>
+        <p>If you want a copy, download it first.</p>
+        <button class="ghost" id="delExport" type="button">Download my data first</button>
+        <label class="modal-label" for="delConfirm">Type <strong>DELETE</strong> to confirm</label>
+        <input class="nn-input" id="delConfirm" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <div class="nn-error" id="delError"></div>
+        <p class="modal-fine">This erases your data, not your sign-in. To remove your account as well, <a href="mailto:marcortiz.ai@gmail.com?subject=Delete%20my%20account" data-mail="Delete my account" title="marcortiz.ai@gmail.com">email us</a>.</p>
+      </div>
+      <div class="btnrow">
+        <button class="ghost" id="delCancel" type="button">Cancel</button>
+        <button class="danger" id="delConfirmBtn" type="button" disabled>Delete everything</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.addEventListener('keydown', deleteModalKeydown);
+
+  const input = overlay.querySelector('#delConfirm');
+  const go = overlay.querySelector('#delConfirmBtn');
+  const cancel = overlay.querySelector('#delCancel');
+  const err = overlay.querySelector('#delError');
+  const matches = ()=> input.value.trim().toUpperCase() === 'DELETE';
+
+  input.addEventListener('input', ()=>{ go.disabled = !matches() || deleteBusy; err.textContent = ''; });
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter' && matches() && !deleteBusy){ e.preventDefault(); go.click(); } });
+  overlay.addEventListener('click', e=>{ if(e.target === overlay && !deleteBusy) closeDeleteDataModal(); });
+  cancel.onclick = ()=>{ if(!deleteBusy) closeDeleteDataModal(); };
+  overlay.querySelector('#delExport').onclick = ()=> exportUserData();
+
+  go.onclick = async ()=>{
+    if(!matches() || deleteBusy) return;
+    deleteBusy = true;
+    go.disabled = true; go.textContent = 'Deleting...'; cancel.disabled = true; input.disabled = true;
+    const r = await performDeleteAllData();
+    deleteBusy = false;
+    if(!r.ok){
+      go.textContent = 'Delete everything'; go.disabled = !matches(); cancel.disabled = false; input.disabled = false;
+      err.textContent = r.stage === 'checkins'
+        ? "Couldn't delete just now. Check your connection and try again. Nothing was deleted."
+        : "Your check-ins were deleted, but your settings couldn't be. Please try again.";
+      return;
+    }
+    // Reset the app behind the dialog, so closing it lands on a clean start.
+    currentView = 'home';
+    render();
+    overlay.querySelector('.modal').innerHTML = `
+      <div class="modal-icon" style="color:var(--accent-glow);background:var(--surface-2);border-color:var(--border);">${DONE_ICON}</div>
+      <div class="modal-title">Your data has been deleted</div>
+      <div class="modal-body"><p>Everything was erased. You're still signed in, so you can start fresh whenever you like.</p></div>
+      <div class="btnrow"><button class="primary" id="delDone" type="button">Start fresh</button></div>`;
+    overlay.querySelector('#delDone').onclick = closeDeleteDataModal;
+  };
+  input.focus();
+}
+/* ---------- END Delete my data ---------- */
+
 function renderSettings(main){
   const s = appConfig.settings;
   main.innerHTML = `
     <div class="page-eyebrow">Reference</div>
     <div class="page-title">Settings</div>
-    <div class="page-sub voice">Reminders only fire while this app is open in your browser.</div>
-    <div class="card">
+
+    <div class="settings-section first">Reminders</div>
+    <div class="card settings-card">
       <div class="settings-row">
         <div>
           <div class="settings-label">Morning reminder</div>
@@ -1829,7 +1977,11 @@ function renderSettings(main){
         </div>
       </div>
     </div>
-    <div class="card">
+    <div class="footnote">Browser notifications require permission and only work while this tab stays open &mdash; they won't fire if the app is closed or your computer is asleep. For a reliable daily nudge, a phone alarm is more dependable.</div>
+
+    ${s.domainsEnabled ? `
+    <div class="settings-section">Check-ins</div>
+    <div class="card settings-card">
       <div class="settings-row">
         <div>
           <div class="settings-label">Business + personal domains</div>
@@ -1838,29 +1990,42 @@ function renderSettings(main){
         <div class="toggle ${s.domainsEnabled?'on':''}" id="domainsToggle"><div class="knob"></div></div>
       </div>
     </div>
-    <div class="card">
+    ` : ''}
+
+    <div class="settings-section">Your data</div>
+    <div class="card settings-card">
       <div class="settings-row">
         <div>
-          <div class="settings-label">Your data</div>
-          <div class="settings-hint">Every check-in, vision field, and note, in one plain-text file you can keep. To delete your data, <a href="mailto:marcortiz.ai@gmail.com?subject=Delete%20my%20data" data-mail="Delete my data" title="marcortiz.ai@gmail.com">email us</a>.</div>
+          <div class="settings-label">Download your data</div>
+          <div class="settings-hint">Every check-in, vision field, and note, in one plain-text file you can keep.</div>
         </div>
         <button class="ghost" id="exportBtn">Download</button>
       </div>
-    </div>
-    <div class="card">
       <div class="settings-row">
         <div>
-          <div class="settings-label">Account</div>
+          <div class="settings-label">Delete my data</div>
+          <div class="settings-hint">Permanently erases every check-in, review, note, vision field and setting. This can't be undone. Your sign-in stays, so you can start fresh.</div>
+        </div>
+        <button class="danger" id="deleteDataBtn" type="button">Delete data</button>
+      </div>
+    </div>
+
+    <div class="settings-section">Account</div>
+    <div class="card settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Signed in as</div>
           <div class="settings-hint">${currentUser?.email || ''}</div>
         </div>
         <button class="ghost" id="signOutBtn">Sign out</button>
       </div>
     </div>
-    <div class="footnote">Browser notifications require permission and only work while this tab stays open — they won't fire if the app is closed or your computer is asleep. For a reliable daily nudge, a phone alarm is more dependable.</div>
   `;
   document.getElementById('exportBtn').onclick = ()=> exportUserData();
   document.getElementById('signOutBtn').onclick = ()=> signOut();
-  document.getElementById('domainsToggle').onclick = async ()=>{
+  document.getElementById('deleteDataBtn').onclick = ()=> openDeleteDataModal();
+  const domainsToggleEl = document.getElementById('domainsToggle');
+  if(domainsToggleEl) domainsToggleEl.onclick = async ()=>{
     s.domainsEnabled = !s.domainsEnabled;
     await saveConfig(); renderSettings(main);
   };
@@ -2120,7 +2285,7 @@ function prefersReducedMotion(){
 }
 function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
 // Keep the logo on screen long enough to be seen (BOOT_MIN_MS), then blur it out before the next screen appears.
-const BOOT_MIN_MS = 1900;
+const BOOT_MIN_MS = 1500;
 async function finishBoot(startedAt){
   if(prefersReducedMotion()) return;
   const elapsed = Date.now() - startedAt;
