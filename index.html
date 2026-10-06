@@ -202,6 +202,29 @@
   .feedback-line a,.sidebar-footer a{color:var(--text-muted);text-decoration:underline;}
   .auth-forgot{margin-top:14px;font-size:12.5px;color:var(--text-faint);line-height:1.5;}
   .auth-forgot a,.settings-hint a{color:var(--text-muted);text-decoration:underline;}
+  .tracked-tag{margin-left:auto;font-size:10px;color:var(--text-faint);}
+  .nn-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+  .nn-head .rule-group-title{margin:0;}
+  .nn-row{display:flex;gap:10px;align-items:flex-start;padding:5px 0;}
+  .nn-field{flex:1;min-width:0;}
+  .nn-field .nn-input{width:100%;}
+  #nnEditor .btnrow{flex-wrap:wrap;}
+  #nnEditor .btnrow button{white-space:nowrap;}
+  .nn-input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13.5px;font-family:inherit;}
+  .nn-input:focus{outline:none;border-color:var(--accent);}
+  .nn-auto{font-size:10.5px;color:var(--text-faint);margin:4px 0 0 2px;}
+  .nn-del{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;}
+  .nn-del:hover{color:var(--text);}
+  .nn-row .nn-del{margin-top:5px;}
+  .nn-add{display:flex;gap:10px;margin-top:10px;}
+  .nn-error{min-height:18px;margin-top:8px;font-size:12px;color:#F0B8C4;}
+  @keyframes mcosViewIn{from{opacity:0;filter:blur(6px);transform:translateY(6px);}to{opacity:1;filter:none;transform:none;}}
+  #main.view-in > *{animation:mcosViewIn .55s ease backwards;}
+  #main.view-in > *:nth-child(2){animation-delay:.04s;}
+  #main.view-in > *:nth-child(3){animation-delay:.08s;}
+  #main.view-in > *:nth-child(4){animation-delay:.12s;}
+  #main.view-in > *:nth-child(5){animation-delay:.16s;}
+  #main.view-in > *:nth-child(6){animation-delay:.2s;}
   /* Logo loading mark: blurs in, draws, then pulses softly until the app is ready */
   .boot{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18vh;}
   .boot svg{display:block;}
@@ -230,7 +253,7 @@
     .boot .boot-mark,.boot.out{animation:none;}
     .boot .boot-line{animation:none;stroke-dashoffset:0;opacity:1;}
     .boot .boot-dot,.boot-text{animation:none;opacity:1;}
-    #main.blur-in > *{animation:none !important;}
+    #main.blur-in > *,#main.view-in > *{animation:none !important;}
   }
   .entry-row .k{color:var(--text-faint);flex-shrink:0;width:150px;}
   .entry-row .v{color:var(--text);text-align:right;}
@@ -515,6 +538,7 @@ async function loadAll(){
     if(!appConfig.settings) appConfig.settings = {morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false};
     if(typeof appConfig.settings.domainsEnabled !== 'boolean') appConfig.settings.domainsEnabled = false;
     if(!appConfig.manualNonNegotiables) appConfig.manualNonNegotiables = {};
+    if(!Array.isArray(appConfig.nonNegotiables)) appConfig.nonNegotiables = defaultNonNegotiables();
     if(typeof appConfig.onboardingComplete !== 'boolean') appConfig.onboardingComplete = false;
   }catch(e){
     console.error('load failed', e);
@@ -707,10 +731,12 @@ function renderNav(){
   });
 }
 
+let viewAnimToken = 0;
 function render(){
   stopActiveRecognition();
   const mainEl = document.getElementById('main');
-  if(mainEl) mainEl.classList.remove('blur-in');
+  if(mainEl) mainEl.classList.remove('blur-in','view-in');
+  if(currentView !== 'rules') rulesEditing = false;
   if(!appConfig.onboardingComplete){
     document.getElementById('main').innerHTML = '';
     renderOnboarding(document.getElementById('main'));
@@ -730,6 +756,14 @@ function render(){
   else if(currentView==='notes') renderNotes(main);
   else if(currentView==='privacy') renderPrivacy(main);
   else if(currentView==='settings') renderSettings(main);
+
+  // Soft arrival animation on every tab except the check-in flows (they have their own fade).
+  // Added once per arrival and removed afterwards, so later re-renders (toggles, edits) don't replay it.
+  if(!['morning','evening','weekly','monthly'].includes(currentView)){
+    main.classList.add(currentView==='home' ? 'blur-in' : 'view-in');
+    const tok = ++viewAnimToken;
+    setTimeout(()=>{ if(tok===viewAnimToken) main.classList.remove('blur-in','view-in'); }, 1800);
+  }
 }
 
 /* ============================= ONBOARDING ============================= */
@@ -872,7 +906,6 @@ function renderHome(main){
     ${installNudgeHtml()}
     <div class="feedback-line">Something confusing or broken? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a></div>
   `;
-  main.classList.add('blur-in');
   const nudgeBtn = document.getElementById('installDismiss');
   if(nudgeBtn) nudgeBtn.onclick = ()=>{
     try{ localStorage.setItem('mcos_install_nudge_dismissed','1'); }catch(e){}
@@ -1469,28 +1502,74 @@ function renderVision(main){
 }
 
 /* ============================= RULES ============================= */
+const MAX_NON_NEGOTIABLES = 12;
+function defaultNonNegotiables(){
+  return [
+    { id:'morning',  label:'Morning check-in daily',        auto:'morning' },
+    { id:'evening',  label:'Evening review daily',          auto:'evening' },
+    { id:'weekly',   label:'Weekly review completed',       auto:'weekly' },
+    { id:'training', label:'Training / movement scheduled' },
+    { id:'sleep',    label:'Protect sleep and mornings' }
+  ];
+}
+function currentNonNegotiables(){
+  return Array.isArray(appConfig.nonNegotiables) ? appConfig.nonNegotiables : defaultNonNegotiables();
+}
 function getTodayNonNegotiables(){
   const iso = todayISO();
   const wm = mondayOf();
-  const manual = appConfig.manualNonNegotiables[iso] || {};
-  return [
-    { key:'morning', label:'Morning check-in daily', auto:true, done: !!checkinsData['morning:'+iso] },
-    { key:'evening', label:'Evening review daily', auto:true, done: !!checkinsData['evening:'+iso] },
-    { key:'weekly', label:'Weekly review completed', auto:true, done: !!checkinsData['weekly:'+wm] },
-    { key:'training', label:'Training / movement scheduled', auto:false, done: !!manual.training },
-    { key:'sleep', label:'Protect sleep and mornings', auto:false, done: !!manual.sleep }
-  ];
+  const manual = (appConfig.manualNonNegotiables && appConfig.manualNonNegotiables[iso]) || {};
+  return currentNonNegotiables().map(n=>{
+    const autoDone = n.auto==='morning' ? !!checkinsData['morning:'+iso]
+                   : n.auto==='evening' ? !!checkinsData['evening:'+iso]
+                   : n.auto==='weekly'  ? !!checkinsData['weekly:'+wm]
+                   : false;
+    return { key:n.id, label:n.label, auto:!!n.auto, autoDone, done: autoDone || !!manual[n.id] };
+  });
 }
+let rulesEditing = false;
+let rulesDraft = [];
+function attrSafe(s){ return escapeHtml(s||'').replace(/"/g,'&quot;'); }
+
 function renderRules(main){
   const items = getTodayNonNegotiables();
   const doneCount = items.filter(i=>i.done).length;
-  const rows = items.map(i=>`
-    <li class="tracked-row" data-key="${i.key}" data-auto="${i.auto}" style="cursor:${i.auto?'default':'pointer'};">
-      <span class="tracked-check ${i.done?'done':''}">${i.done ? '<svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#0A0812" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>
-      <span style="${i.done?'color:var(--text);':''}">${i.label}</span>
-      ${i.auto ? '' : '<span style="margin-left:auto;font-size:10px;color:var(--text-faint);">tap to toggle</span>'}
+  const checkSvg = '<svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#0A0812" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const rows = items.length ? items.map(i=>`
+    <li class="tracked-row" data-key="${attrSafe(i.key)}" style="cursor:${i.autoDone?'default':'pointer'};">
+      <span class="tracked-check ${i.done?'done':''}">${i.done ? checkSvg : ''}</span>
+      <span style="${i.done?'color:var(--text);':''}">${escapeHtml(i.label)}</span>
+      ${i.autoDone ? '<span class="tracked-tag">logged</span>' : ''}
     </li>
-  `).join('');
+  `).join('') : '<li style="color:var(--text-faint);">Nothing to track yet. Use Edit below to add your own.</li>';
+
+  const viewList = items.length ? items.map(i=>`<li>${escapeHtml(i.label)}</li>`).join('') : '<li>None yet.</li>';
+  const nnCard = rulesEditing ? `
+      <div class="nn-head"><div class="rule-group-title">Edit your non-negotiables</div></div>
+      <div id="nnEditor">
+        ${rulesDraft.map((n,idx)=>`
+        <div class="nn-row">
+          <div class="nn-field">
+            <input class="nn-input" data-idx="${idx}" maxlength="80" value="${attrSafe(n.label)}">
+            ${n.auto ? '<div class="nn-auto">checks itself when you log it</div>' : ''}
+          </div>
+          <button class="nn-del" data-idx="${idx}" type="button" aria-label="Remove">&times;</button>
+        </div>`).join('')}
+        <div class="nn-add">
+          <input class="nn-input" id="nnNew" maxlength="80" placeholder="Add your own...">
+          <button class="ghost" id="nnAddBtn" type="button">Add</button>
+        </div>
+        <div class="nn-error" id="nnError"></div>
+        <div class="btnrow">
+          <button class="primary" id="nnSaveBtn" type="button">Save</button>
+          <button class="ghost" id="nnCancelBtn" type="button">Cancel</button>
+          <button class="ghost" id="nnResetBtn" type="button">Reset to defaults</button>
+        </div>
+      </div>
+    ` : `
+      <div class="nn-head"><div class="rule-group-title">Non-negotiables</div><button class="ghost" id="nnEditBtn" type="button">Edit</button></div>
+      <ul class="rule-list">${viewList}</ul>
+    `;
 
   main.innerHTML = `
     <div class="page-eyebrow">Reference</div>
@@ -1499,17 +1578,10 @@ function renderRules(main){
     <div class="card">
       <div class="rule-group-title">Today &mdash; ${doneCount}/${items.length}</div>
       <ul class="rule-list tracked-list">${rows}</ul>
-      <div class="footnote">Morning, evening, and weekly are marked automatically from what you've logged. Training and sleep are self-reported &mdash; tap to mark them.</div>
+      <div class="footnote">Morning, evening, and weekly check themselves when you log them. Tap any item to check it off yourself.</div>
     </div>
     <div class="card">
-      <div class="rule-group-title">Non-negotiables</div>
-      <ul class="rule-list">
-        <li>Morning check-in daily</li>
-        <li>Evening review daily</li>
-        <li>Weekly review completed</li>
-        <li>Training / movement scheduled</li>
-        <li>Protect sleep and mornings</li>
-      </ul>
+      ${nnCard}
       <div class="rule-group-title">Operating rules</div>
       <ul class="rule-list">
         <li>One priority per day</li>
@@ -1520,16 +1592,68 @@ function renderRules(main){
     </div>
   `;
 
-  main.querySelectorAll('.tracked-row[data-auto="false"]').forEach(row=>{
+  // Every item can be checked off. Items already verified by a logged check-in stay checked.
+  main.querySelectorAll('.tracked-row').forEach(row=>{
     row.onclick = async ()=>{
-      const iso = todayISO();
       const key = row.dataset.key;
+      const it = items.find(x=>x.key===key);
+      if(!it || it.autoDone) return;
+      const iso = todayISO();
       if(!appConfig.manualNonNegotiables[iso]) appConfig.manualNonNegotiables[iso] = {};
       appConfig.manualNonNegotiables[iso][key] = !appConfig.manualNonNegotiables[iso][key];
       await saveConfig();
       renderRules(main);
     };
   });
+
+  const editBtn = document.getElementById('nnEditBtn');
+  if(editBtn) editBtn.onclick = ()=>{
+    rulesDraft = JSON.parse(JSON.stringify(currentNonNegotiables()));
+    rulesEditing = true;
+    renderRules(main);
+  };
+
+  if(rulesEditing){
+    const keepNew = ()=> (document.getElementById('nnNew') || {}).value || '';
+    const rerender = (pending)=>{
+      renderRules(main);
+      const el = document.getElementById('nnNew');
+      if(el){ el.value = pending || ''; }
+    };
+    main.querySelectorAll('input.nn-input[data-idx]').forEach(inp=>{
+      inp.oninput = ()=>{ rulesDraft[+inp.dataset.idx].label = inp.value; };
+    });
+    main.querySelectorAll('.nn-del').forEach(b=>{
+      b.onclick = ()=>{ const pending = keepNew(); rulesDraft.splice(+b.dataset.idx, 1); rerender(pending); };
+    });
+    const addNew = ()=>{
+      const el = document.getElementById('nnNew');
+      const text = (el.value || '').trim();
+      if(!text) return;
+      if(rulesDraft.length >= MAX_NON_NEGOTIABLES){
+        document.getElementById('nnError').textContent = 'Up to ' + MAX_NON_NEGOTIABLES + ' non-negotiables.';
+        return;
+      }
+      rulesDraft.push({ id:'nn_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), label:text });
+      rerender('');
+      const again = document.getElementById('nnNew'); if(again) again.focus();
+    };
+    document.getElementById('nnAddBtn').onclick = addNew;
+    document.getElementById('nnNew').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addNew(); } });
+    document.getElementById('nnSaveBtn').onclick = async ()=>{
+      const pending = keepNew().trim();
+      if(pending && rulesDraft.length < MAX_NON_NEGOTIABLES){
+        rulesDraft.push({ id:'nn_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), label:pending });
+      }
+      const cleaned = rulesDraft.map(n=>({ ...n, label:(n.label || '').trim() })).filter(n=>n.label);
+      appConfig.nonNegotiables = cleaned.slice(0, MAX_NON_NEGOTIABLES);
+      rulesEditing = false;
+      await saveConfig();
+      renderRules(main);
+    };
+    document.getElementById('nnCancelBtn').onclick = ()=>{ rulesEditing = false; renderRules(main); };
+    document.getElementById('nnResetBtn').onclick = ()=>{ const pending = keepNew(); rulesDraft = defaultNonNegotiables(); rerender(pending); };
+  }
 }
 
 /* ============================= PRIVACY ============================= */
