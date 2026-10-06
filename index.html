@@ -71,10 +71,18 @@
   }
   @media (max-width:860px){
     body{flex-direction:column;}
-    #sidebar{width:100%;height:auto;position:relative;flex-direction:row;align-items:center;overflow-x:auto;padding:14px;}
-    #sidebar .brand{margin-bottom:0;margin-right:16px;}
-    #sidebar nav{flex-direction:row;gap:4px;}
+    #sidebar{width:100%;height:auto;position:sticky;top:0;z-index:60;flex-direction:column;align-items:stretch;gap:2px;overflow:visible;padding:10px 12px 6px;border-right:none;border-bottom:1px solid var(--border-soft);}
+    #sidebar .brand{margin:0 0 6px;padding:2px 4px;}
+    #sidebar .brand-text{display:flex;align-items:baseline;gap:8px;}
+    #sidebar .brand-text span{display:inline;margin-top:0;}
+    #sidebar nav{flex-direction:row;flex:none;gap:2px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:4px;}
+    #sidebar nav::-webkit-scrollbar{display:none;}
+    #sidebar .navgroup-label,#sidebar .sidebar-footer{display:none;}
+    #sidebar .navitem{flex-direction:column;justify-content:center;gap:3px;width:auto;min-width:64px;flex:0 0 auto;padding:8px 8px 7px;text-align:center;font-size:10.5px;}
     #sidebar .navlabel{display:none;}
+    #sidebar .navshort{display:block;}
+    #sidebar .navitem.active{box-shadow:inset 0 -2px 0 var(--accent);}
+    #sidebar .navbadge{position:absolute;top:2px;right:2px;margin:0;}
     #main{padding:24px 20px 60px;}
   }
 
@@ -99,6 +107,12 @@
   .navitem.active{background:var(--surface-2);color:var(--text);}
   .navitem.active .navdot{background:var(--accent);}
   .navdot{width:5px;height:5px;border-radius:50%;background:var(--text-faint);flex-shrink:0;}
+  .navitem{position:relative;}
+  .navicon-wrap{display:flex;flex-shrink:0;}
+  .navshort{display:none;}
+  .navitem.active .navicon{color:var(--accent-glow);}
+  .brand{cursor:pointer;}
+  .brand:focus-visible{outline:1px solid var(--accent);outline-offset:3px;border-radius:8px;}
   .navbadge{margin-left:auto;font-size:10px;background:var(--accent-dim);color:var(--accent-glow);padding:1px 6px;border-radius:20px;font-weight:600;}
 
   .sidebar-footer{padding:10px;font-size:11px;color:var(--text-faint);line-height:1.5;border-top:1px solid var(--border-soft);margin-top:12px;padding-top:14px;}
@@ -203,6 +217,21 @@
   .auth-forgot{margin-top:14px;font-size:12.5px;color:var(--text-faint);line-height:1.5;}
   .auth-forgot a,.settings-hint a{color:var(--text-muted);text-decoration:underline;}
   .tracked-tag{margin-left:auto;font-size:10px;color:var(--text-faint);}
+  .tracked-slot{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:13.5px;color:var(--text-faint);cursor:pointer;}
+  .tracked-slot::before{display:none;}
+  .tracked-slot:last-child{border-bottom:none;}
+  .tracked-slot:hover{color:var(--text-muted);}
+  .tracked-check.slot{border-style:dashed;}
+  .nn-note{margin-top:10px;font-size:12.5px;color:var(--text-faint);}
+  .howto{margin-top:22px;border:1px solid var(--border-soft);border-radius:12px;padding:14px 20px;}
+  .howto summary{cursor:pointer;font-size:14px;color:var(--text);list-style:none;}
+  .howto summary::-webkit-details-marker{display:none;}
+  .howto summary::after{content:'+';float:right;color:var(--text-faint);}
+  .howto[open] summary::after{content:'\2013';}
+  .howto-body{margin-top:12px;}
+  .howto-body p{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;}
+  .howto-body strong{color:var(--text);font-weight:600;}
+  .howto-body .howto-tip{color:var(--text-faint);margin-bottom:0;}
   .nn-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
   .nn-head .rule-group-title{margin:0;}
   .nn-row{display:flex;gap:10px;align-items:flex-start;padding:5px 0;}
@@ -369,7 +398,7 @@
 <body>
 
 <div id="sidebar">
-  <div class="brand">
+  <div class="brand" id="brandBtn" role="button" tabindex="0" aria-label="Back to dashboard" title="Back to dashboard">
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
       <path d="M3 20C7 20 8 6 13 6C17 6 15 16 19 16C21.5 16 22 12 22 12" stroke="#8B7CF6" stroke-width="1.6" stroke-linecap="round" fill="none"/>
       <circle cx="22" cy="12" r="2.4" fill="#B8A6FF"/>
@@ -450,21 +479,21 @@ const FLOWS = {
 };
 
 const NAV = [
-  {group:'Today', items:[{id:'home', label:'Dashboard', icon:'home'}]},
+  {group:'Today', items:[{id:'home', label:'Dashboard', short:'Home', icon:'home'}]},
   {group:'Check-ins', items:[
-    {id:'morning', label:'Morning check-in', icon:'sun'},
-    {id:'evening', label:'Evening review', icon:'moon'},
-    {id:'weekly', label:'Weekly review', icon:'week'},
-    {id:'monthly', label:'Monthly review', icon:'week'}
+    {id:'morning', label:'Morning check-in', short:'Morning', icon:'sun'},
+    {id:'evening', label:'Evening review', short:'Evening', icon:'moon'},
+    {id:'weekly', label:'Weekly review', short:'Weekly', icon:'week'},
+    {id:'monthly', label:'Monthly review', short:'Monthly', icon:'month'}
   ]},
   {group:'Reference', items:[
-    {id:'history', label:'History', icon:'history'},
-    {id:'thennow', label:'Then vs now', icon:'vision'},
-    {id:'vision', label:'Vision', icon:'vision'},
-    {id:'rules', label:'Rules & standards', icon:'rules'},
-    {id:'notes', label:'Notes', icon:'notes'},
-    {id:'privacy', label:'Privacy', icon:'rules'},
-    {id:'settings', label:'Settings', icon:'settings'}
+    {id:'history', label:'History', short:'History', icon:'history'},
+    {id:'thennow', label:'Then vs now', short:'Then/Now', icon:'compare'},
+    {id:'vision', label:'Vision', short:'Vision', icon:'vision'},
+    {id:'rules', label:'Rules & standards', short:'Rules', icon:'check'},
+    {id:'notes', label:'Notes', short:'Notes', icon:'notes'},
+    {id:'privacy', label:'Privacy', short:'Privacy', icon:'lock'},
+    {id:'settings', label:'Settings', short:'Settings', icon:'settings'}
   ]}
 ];
 
@@ -702,6 +731,23 @@ function computeStreak(){
   return streak;
 }
 
+const NAV_ICONS = {
+  home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
+  moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
+  week:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M8 14h.01M12 14h.01M16 14h.01"/>',
+  month:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01M16 17h.01"/>',
+  history:'<path d="M4 12a8 8 0 1 0 2.5-5.8L4 8"/><path d="M4 4v4h4M12 8v4l3 2"/>',
+  compare:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  vision:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  check:'<path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
+  notes:'<path d="M5 4h10l4 4v12H5z"/><path d="M14 4v5h5M8 13h8M8 17h5"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  settings:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>'
+};
+function navIcon(name){
+  return `<svg class="navicon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICONS[name] || ''}</svg>`;
+}
 function renderNav(){
   const nav = document.getElementById('nav');
   nav.innerHTML = '';
@@ -724,12 +770,31 @@ function renderNav(){
         const cnt = weeklyCountForMonth(mk);
         if(!isMonthlyUnlocked(mk)) badge = `<span class="navbadge">${cnt}/4</span>`;
       }
-      btn.innerHTML = `<span class="navdot"></span><span class="navlabel">${item.label}</span>${badge}`;
+      btn.innerHTML = `<span class="navicon-wrap">${navIcon(item.icon)}</span><span class="navlabel">${item.label}</span><span class="navshort">${item.short || item.label}</span>${badge}`;
       btn.onclick = ()=>{ currentView = item.id; render(); };
       nav.appendChild(btn);
     });
   });
+  // On phones the menu scrolls sideways: keep the current tab in view.
+  const activeBtn = nav.querySelector('.navitem.active');
+  if(activeBtn && activeBtn.scrollIntoView){ try{ activeBtn.scrollIntoView({ inline:'center', block:'nearest' }); }catch(e){} }
 }
+
+/* Tapping the logo: go back to the dashboard; if you're already there, reload the page. */
+function reloadApp(){ location.reload(); }
+function goToDashboard(){
+  if(!currentUser || !appConfig.onboardingComplete) return;
+  if(currentView === 'home'){ reloadApp(); return; }
+  currentView = 'home';
+  render();
+  window.scrollTo(0, 0);
+}
+(function bindBrand(){
+  const b = document.getElementById('brandBtn');
+  if(!b) return;
+  b.addEventListener('click', goToDashboard);
+  b.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); goToDashboard(); } });
+})();
 
 let viewAnimToken = 0;
 function render(){
@@ -849,6 +914,15 @@ function renderHome(main){
   const focusParts = [];
   if(mEntry && mEntry.mustDo) focusParts.push(`<div class="focus-item"><span class="k">Must-do</span>${escapeHtml(mEntry.mustDo)}</div>`);
   if(mEntry && mEntry.priority) focusParts.push(`<div class="focus-item"><span class="k">Top priority</span>${escapeHtml(mEntry.priority)}</div>`);
+  const firstTime = Object.keys(checkinsData || {}).length === 0;
+  const howToHtml = `<details class="howto"${firstTime ? ' open' : ''}><summary>How this works</summary><div class="howto-body">
+      <p><strong>Morning check-in.</strong> Five questions to set the standard for the day. About three minutes.</p>
+      <p><strong>Evening review.</strong> Four questions to close the day.</p>
+      <p><strong>Weekly and monthly reviews</strong> unlock as you go: the weekly after five check-ins in a week, the monthly after four weekly reviews.</p>
+      <p><strong>Then vs now</strong> puts your first morning answers next to your latest.</p>
+      <p><strong>Vision, Rules &amp; standards, Notes.</strong> Your reference pages. Rules is your non-negotiables checklist.</p>
+      <p class="howto-tip">On your phone, swipe the menu at the top to see every tab. Tap the logo to come back here.</p>
+    </div></details>`;
   const todayFocusHtml = focusParts.length ? `<div class="focus-box"><div class="focus-label">Today's focus</div>${focusParts.join('')}</div>` : '';
   const eDone = !!checkinsData['evening:'+iso];
   const streak = computeStreak();
@@ -903,6 +977,7 @@ function renderHome(main){
         <div class="flow-card-desc">Zoom out across the month once you've logged 4 weeks.</div>
       </div>
     </div>
+    ${howToHtml}
     ${installNudgeHtml()}
     <div class="feedback-line">Something confusing or broken? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a></div>
   `;
@@ -1502,14 +1577,12 @@ function renderVision(main){
 }
 
 /* ============================= RULES ============================= */
-const MAX_NON_NEGOTIABLES = 12;
+const MAX_NON_NEGOTIABLES = 5;
 function defaultNonNegotiables(){
   return [
-    { id:'morning',  label:'Morning check-in daily',        auto:'morning' },
-    { id:'evening',  label:'Evening review daily',          auto:'evening' },
-    { id:'weekly',   label:'Weekly review completed',       auto:'weekly' },
-    { id:'training', label:'Training / movement scheduled' },
-    { id:'sleep',    label:'Protect sleep and mornings' }
+    { id:'morning', label:'Morning check-in daily',  auto:'morning' },
+    { id:'evening', label:'Evening review daily',    auto:'evening' },
+    { id:'weekly',  label:'Weekly review completed', auto:'weekly' }
   ];
 }
 function currentNonNegotiables(){
@@ -1530,21 +1603,27 @@ function getTodayNonNegotiables(){
 let rulesEditing = false;
 let rulesDraft = [];
 function attrSafe(s){ return escapeHtml(s||'').replace(/"/g,'&quot;'); }
+function newNonNegotiableId(){ return 'nn_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 
 function renderRules(main){
   const items = getTodayNonNegotiables();
   const doneCount = items.filter(i=>i.done).length;
   const checkSvg = '<svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#0A0812" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const rows = items.length ? items.map(i=>`
+
+  const rows = items.map(i=>`
     <li class="tracked-row" data-key="${attrSafe(i.key)}" style="cursor:${i.autoDone?'default':'pointer'};">
       <span class="tracked-check ${i.done?'done':''}">${i.done ? checkSvg : ''}</span>
       <span style="${i.done?'color:var(--text);':''}">${escapeHtml(i.label)}</span>
       ${i.autoDone ? '<span class="tracked-tag">logged</span>' : ''}
     </li>
-  `).join('') : '<li style="color:var(--text-faint);">Nothing to track yet. Use Edit below to add your own.</li>';
+  `).join('');
+  const openSlots = Math.max(0, MAX_NON_NEGOTIABLES - items.length);
+  const slots = Array.from({length:openSlots}).map(()=>`
+    <li class="tracked-slot"><span class="tracked-check slot"></span><span>Add your own</span></li>
+  `).join('');
 
-  const viewList = items.length ? items.map(i=>`<li>${escapeHtml(i.label)}</li>`).join('') : '<li>None yet.</li>';
-  const nnCard = rulesEditing ? `
+  const draftFull = rulesDraft.length >= MAX_NON_NEGOTIABLES;
+  const todayCard = rulesEditing ? `
       <div class="nn-head"><div class="rule-group-title">Edit your non-negotiables</div></div>
       <div id="nnEditor">
         ${rulesDraft.map((n,idx)=>`
@@ -1555,10 +1634,12 @@ function renderRules(main){
           </div>
           <button class="nn-del" data-idx="${idx}" type="button" aria-label="Remove">&times;</button>
         </div>`).join('')}
-        <div class="nn-add">
-          <input class="nn-input" id="nnNew" maxlength="80" placeholder="Add your own...">
-          <button class="ghost" id="nnAddBtn" type="button">Add</button>
-        </div>
+        ${draftFull
+          ? '<div class="nn-note">That\'s five. Remove one to add another.</div>'
+          : `<div class="nn-add">
+              <input class="nn-input" id="nnNew" maxlength="80" placeholder="Add your own...">
+              <button class="ghost" id="nnAddBtn" type="button">Add</button>
+            </div>`}
         <div class="nn-error" id="nnError"></div>
         <div class="btnrow">
           <button class="primary" id="nnSaveBtn" type="button">Save</button>
@@ -1567,8 +1648,9 @@ function renderRules(main){
         </div>
       </div>
     ` : `
-      <div class="nn-head"><div class="rule-group-title">Non-negotiables</div><button class="ghost" id="nnEditBtn" type="button">Edit</button></div>
-      <ul class="rule-list">${viewList}</ul>
+      <div class="nn-head"><div class="rule-group-title">Today &mdash; ${doneCount}/${items.length}</div><button class="ghost" id="nnEditBtn" type="button">Edit</button></div>
+      <ul class="rule-list tracked-list">${rows}${slots}</ul>
+      <div class="footnote">Morning, evening, and weekly check themselves when you log them. Tap any line to check it off yourself. Edit to change the list, up to five.</div>
     `;
 
   main.innerHTML = `
@@ -1576,12 +1658,9 @@ function renderRules(main){
     <div class="page-title">Rules and standards</div>
     <div class="standards-note">One line per field, no storytelling. This is a tool for discipline and clarity — not therapy or motivation. Results come from consistency, not customization. Questions should clarify execution, not replace it.</div>
     <div class="card">
-      <div class="rule-group-title">Today &mdash; ${doneCount}/${items.length}</div>
-      <ul class="rule-list tracked-list">${rows}</ul>
-      <div class="footnote">Morning, evening, and weekly check themselves when you log them. Tap any item to check it off yourself.</div>
+      ${todayCard}
     </div>
     <div class="card">
-      ${nnCard}
       <div class="rule-group-title">Operating rules</div>
       <ul class="rule-list">
         <li>One priority per day</li>
@@ -1592,7 +1671,7 @@ function renderRules(main){
     </div>
   `;
 
-  // Every item can be checked off. Items already verified by a logged check-in stay checked.
+  // Every line can be checked off. Lines already verified by a logged check-in stay checked.
   main.querySelectorAll('.tracked-row').forEach(row=>{
     row.onclick = async ()=>{
       const key = row.dataset.key;
@@ -1606,19 +1685,22 @@ function renderRules(main){
     };
   });
 
-  const editBtn = document.getElementById('nnEditBtn');
-  if(editBtn) editBtn.onclick = ()=>{
+  const startEditing = ()=>{
     rulesDraft = JSON.parse(JSON.stringify(currentNonNegotiables()));
     rulesEditing = true;
     renderRules(main);
+    const el = document.getElementById('nnNew'); if(el) el.focus();
   };
+  const editBtn = document.getElementById('nnEditBtn');
+  if(editBtn) editBtn.onclick = startEditing;
+  main.querySelectorAll('.tracked-slot').forEach(s=>{ s.onclick = startEditing; });
 
   if(rulesEditing){
     const keepNew = ()=> (document.getElementById('nnNew') || {}).value || '';
     const rerender = (pending)=>{
       renderRules(main);
       const el = document.getElementById('nnNew');
-      if(el){ el.value = pending || ''; }
+      if(el) el.value = pending || '';
     };
     main.querySelectorAll('input.nn-input[data-idx]').forEach(inp=>{
       inp.oninput = ()=>{ rulesDraft[+inp.dataset.idx].label = inp.value; };
@@ -1628,22 +1710,25 @@ function renderRules(main){
     });
     const addNew = ()=>{
       const el = document.getElementById('nnNew');
+      if(!el) return;
       const text = (el.value || '').trim();
       if(!text) return;
       if(rulesDraft.length >= MAX_NON_NEGOTIABLES){
         document.getElementById('nnError').textContent = 'Up to ' + MAX_NON_NEGOTIABLES + ' non-negotiables.';
         return;
       }
-      rulesDraft.push({ id:'nn_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), label:text });
+      rulesDraft.push({ id:newNonNegotiableId(), label:text });
       rerender('');
       const again = document.getElementById('nnNew'); if(again) again.focus();
     };
-    document.getElementById('nnAddBtn').onclick = addNew;
-    document.getElementById('nnNew').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addNew(); } });
+    const addBtn = document.getElementById('nnAddBtn');
+    if(addBtn) addBtn.onclick = addNew;
+    const newEl = document.getElementById('nnNew');
+    if(newEl) newEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addNew(); } });
     document.getElementById('nnSaveBtn').onclick = async ()=>{
       const pending = keepNew().trim();
       if(pending && rulesDraft.length < MAX_NON_NEGOTIABLES){
-        rulesDraft.push({ id:'nn_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), label:pending });
+        rulesDraft.push({ id:newNonNegotiableId(), label:pending });
       }
       const cleaned = rulesDraft.map(n=>({ ...n, label:(n.label || '').trim() })).filter(n=>n.label);
       appConfig.nonNegotiables = cleaned.slice(0, MAX_NON_NEGOTIABLES);
