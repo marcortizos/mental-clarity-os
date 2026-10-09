@@ -222,6 +222,12 @@
   .tracked-slot:last-child{border-bottom:none;}
   .tracked-slot:hover{color:var(--text-muted);}
   .tracked-check.slot{border-style:dashed;}
+  .tf-input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13.5px;font-family:inherit;}
+  .tf-input:focus{outline:none;border-color:var(--accent);}
+  .tf-row-edit{display:flex;gap:10px;align-items:center;padding:5px 0;}
+  .tf-del{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;}
+  .tf-del:hover{color:var(--text);}
+  .tf-empty{font-size:13.5px;color:var(--text-muted);line-height:1.5;}
   .nn-note{margin-top:10px;font-size:12.5px;color:var(--text-faint);}
   .howto{margin-top:22px;border:1px solid var(--border-soft);border-radius:12px;padding:14px 20px;}
   .howto summary{cursor:pointer;font-size:14px;color:var(--text);list-style:none;}
@@ -339,7 +345,7 @@
   .locked-progress span.filled{background:var(--accent);}
 
   /* ---------- history table ---------- */
-  .filter-row{display:flex;gap:8px;margin-bottom:20px;}
+  .filter-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
   .filter-btn{background:var(--surface);border:1px solid var(--border-soft);color:var(--text-muted);font-size:12.5px;font-weight:500;padding:7px 14px;border-radius:20px;cursor:pointer;font-family:var(--font-body);}
   .filter-btn.active{background:var(--accent-dim);color:var(--accent-glow);border-color:var(--accent-dim);}
   table.history{width:100%;border-collapse:collapse;font-size:13px;}
@@ -567,7 +573,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
 let currentUser = null;
 let checkinsData = {};   // { "morning:2026-07-09": {...}, "evening:2026-07-09": {...}, "weekly:2026-07-06": {...} }
-let appConfig = { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{} };
+let appConfig = { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{}, todayFive:null };
 let currentView = 'home';
 let storageReady = false;
 
@@ -617,6 +623,7 @@ async function loadAll(){
     if(!appConfig.settings) appConfig.settings = {morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false};
     if(typeof appConfig.settings.domainsEnabled !== 'boolean') appConfig.settings.domainsEnabled = false;
     if(!appConfig.manualNonNegotiables) appConfig.manualNonNegotiables = {};
+    if(!('todayFive' in appConfig)) appConfig.todayFive = null;
     if(!Array.isArray(appConfig.nonNegotiables)) appConfig.nonNegotiables = defaultNonNegotiables();
     if(typeof appConfig.onboardingComplete !== 'boolean') appConfig.onboardingComplete = false;
   }catch(e){
@@ -851,7 +858,7 @@ function render(){
   stopActiveRecognition();
   const mainEl = document.getElementById('main');
   if(mainEl) mainEl.classList.remove('blur-in','view-in');
-  if(currentView !== 'rules') rulesEditing = false;
+  if(currentView !== 'rules'){ rulesEditing = false; todayFiveEditing = false; }
   if(!appConfig.onboardingComplete){
     document.getElementById('main').innerHTML = '';
     renderOnboarding(document.getElementById('main'));
@@ -1277,6 +1284,8 @@ async function finishFlow(main, flowKey, weeklyDate){
   checkinsData[storageKey] = entry;
   await saveCheckins();
   clearDraft(storageKey);
+  // A finished morning check-in fills today's to-do list on the Rules page (runs in the background; the user can edit every line).
+  if(flowKey==='morning' && dateKey===todayISO() && domain==='personal') createTodayFive(entry, dateKey);
 
   flowState.phase = 'complete';
   flowState.reflection = reflection;
@@ -1650,6 +1659,157 @@ function getTodayNonNegotiables(){
     return { key:n.id, label:n.label, auto:!!n.auto, autoDone, done: autoDone || !!manual[n.id] };
   });
 }
+
+/* ============================= TODAY'S FIVE (Rules page) ============================= */
+/* Five editable lines, built each day from the morning check-in. Edits here never change the check-in itself. */
+const TODAY_FIVE_MAX = 5;
+let todayFiveBusy = false;
+let todayFiveEditing = false;
+let todayFiveDraft = [];
+function tfId(){ return 'tf_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function tfClip(t){ return String(t||'').replace(/\s+/g,' ').trim().slice(0,80); }
+function todayFiveFallbackLines(m){
+  const lines = [];
+  if(m.mustDo) lines.push(m.mustDo);
+  if(m.priority) lines.push(m.priority);
+  if(m.standard) lines.push('Hold the standard: ' + m.standard);
+  if(m.clutter) lines.push('Clear: ' + m.clutter);
+  if(m.intention) lines.push(m.intention);
+  return lines.map(tfClip).filter(Boolean).slice(0,TODAY_FIVE_MAX);
+}
+async function buildTodayFiveLines(m){
+  const sys = PERSONA_PROMPT + `
+
+Task: Below are today's morning check-in answers. Turn them into a short to-do list for today. Respond ONLY with strict JSON and nothing else — no markdown fences, no preamble: {"items": ["...", "...", "...", "...", "..."]}. Exactly five items when all five answers are present, one per answer, in this order: must-do, top priority, standard, mental clutter, intention. Each item is one concrete line, under 12 words, starting with a verb. The standard becomes something to hold ("Hold ..."), the mental clutter becomes something to clear ("Clear ..."). Keep the user's own meaning and words. Do not invent goals, numbers or new tasks. If an answer is missing, skip it.`;
+  const msg = `Must-do: ${m.mustDo||''}\nTop priority: ${m.priority||''}\nStandard: ${m.standard||''}\nMental clutter: ${m.clutter||''}\nIntention: ${m.intention||''}`;
+  try{
+    let text = await callClaude(sys, msg);
+    text = text.replace(/```json|```/g,'').trim();
+    const a = text.indexOf('{'), b = text.lastIndexOf('}');
+    if(a===-1 || b===-1) throw new Error('bad format');
+    const parsed = JSON.parse(text.slice(a, b+1));
+    const items = (Array.isArray(parsed.items) ? parsed.items : []).map(tfClip).filter(Boolean).slice(0,TODAY_FIVE_MAX);
+    if(!items.length) throw new Error('no items');
+    return items;
+  }catch(e){
+    console.error('todayFive AI failed, using the check-in lines as written:', e);
+    return todayFiveFallbackLines(m);
+  }
+}
+function todayFiveCurrent(){
+  const tf = appConfig.todayFive;
+  return (tf && tf.date===todayISO() && Array.isArray(tf.items)) ? tf.items : null;
+}
+function todayFiveCardHtml(){
+  const iso = todayISO();
+  const m = checkinsData['morning:'+iso];
+  const items = todayFiveCurrent();
+  const title = '<div class="nn-head"><div class="rule-group-title">Today’s five</div>';
+  if(!m){
+    return `<div class="card">${title}</div><div class="tf-empty">Do your morning check-in and your five lines for today will appear here, built from your own answers.</div></div>`;
+  }
+  if(!items){
+    return `<div class="card">${title}</div><div class="tf-empty">Building today’s list from your check-in...</div></div>`;
+  }
+  const checkSvg = '<svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#0A0812" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  if(todayFiveEditing){
+    const full = todayFiveDraft.length >= TODAY_FIVE_MAX;
+    return `<div class="card">
+      <div class="nn-head"><div class="rule-group-title">Edit today’s five</div></div>
+      <div id="tfEditor">
+        ${todayFiveDraft.map((it,idx)=>`
+        <div class="tf-row-edit">
+          <input class="tf-input" data-tf="${idx}" maxlength="80" value="${attrSafe(it.text)}">
+          <button class="tf-del" data-tfdel="${idx}" type="button" aria-label="Remove">&times;</button>
+        </div>`).join('')}
+        ${full ? '<div class="nn-note">That’s five. Remove one to add another.</div>'
+               : `<div class="nn-add"><input class="tf-input" id="tfNew" maxlength="80" placeholder="Add your own..."><button class="ghost" id="tfAddBtn" type="button">Add</button></div>`}
+        <div class="btnrow">
+          <button class="primary" id="tfSaveBtn" type="button">Save</button>
+          <button class="ghost" id="tfCancelBtn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  const done = items.filter(i=>i.done).length;
+  const rows = items.map(i=>`
+    <li class="tf-row" data-tf="${attrSafe(i.id)}" style="cursor:pointer;">
+      <span class="tracked-check ${i.done?'done':''}">${i.done ? checkSvg : ''}</span>
+      <span style="${i.done?'color:var(--text);':''}">${escapeHtml(i.text)}</span>
+    </li>`).join('');
+  const empty = items.length ? '' : '<div class="tf-empty">No lines left. Tap Edit to add your own.</div>';
+  return `<div class="card">
+    <div class="nn-head"><div class="rule-group-title">Today’s five &mdash; ${done}/${items.length}</div><button class="ghost" id="tfEditBtn" type="button">Edit</button></div>
+    <ul class="rule-list tracked-list">${rows}</ul>${empty}
+    <div class="footnote">Built from this morning’s check-in. Tap a line to check it off. Edit to change the lines. Your check-in answers stay as you wrote them.</div>
+  </div>`;
+}
+function wireTodayFive(main){
+  main.querySelectorAll('.tf-row').forEach(row=>{
+    row.onclick = async ()=>{
+      const items = todayFiveCurrent(); if(!items) return;
+      const it = items.find(x=>x.id===row.dataset.tf); if(!it) return;
+      it.done = !it.done;
+      await saveConfig();
+      renderRules(main);
+    };
+  });
+  const editBtn = document.getElementById('tfEditBtn');
+  if(editBtn) editBtn.onclick = ()=>{
+    todayFiveDraft = JSON.parse(JSON.stringify(todayFiveCurrent()||[]));
+    todayFiveEditing = true; renderRules(main);
+    const el = document.getElementById('tfNew'); if(el) el.focus();
+  };
+  if(!todayFiveEditing) return;
+  const keepNew = ()=> (document.getElementById('tfNew')||{}).value || '';
+  const rerender = (pending)=>{ renderRules(main); const el = document.getElementById('tfNew'); if(el) el.value = pending||''; };
+  main.querySelectorAll('input.tf-input[data-tf]').forEach(inp=>{
+    inp.oninput = ()=>{ todayFiveDraft[+inp.dataset.tf].text = inp.value; };
+  });
+  main.querySelectorAll('.tf-del').forEach(b=>{
+    b.onclick = ()=>{ const p = keepNew(); todayFiveDraft.splice(+b.dataset.tfdel,1); rerender(p); };
+  });
+  const addBtn = document.getElementById('tfAddBtn');
+  const addNew = ()=>{
+    const t = tfClip(keepNew()); if(!t || todayFiveDraft.length>=TODAY_FIVE_MAX) return;
+    todayFiveDraft.push({id:tfId(), text:t, done:false}); rerender('');
+    const el = document.getElementById('tfNew'); if(el) el.focus();
+  };
+  if(addBtn) addBtn.onclick = addNew;
+  const newInp = document.getElementById('tfNew');
+  if(newInp) newInp.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); addNew(); } };
+  document.getElementById('tfCancelBtn').onclick = ()=>{ todayFiveEditing = false; renderRules(main); };
+  document.getElementById('tfSaveBtn').onclick = async (ev)=>{
+    const pending = tfClip(keepNew());
+    if(pending && todayFiveDraft.length<TODAY_FIVE_MAX) todayFiveDraft.push({id:tfId(), text:pending, done:false});
+    const cleaned = todayFiveDraft.map(i=>({id:i.id||tfId(), text:tfClip(i.text), done:!!i.done})).filter(i=>i.text);
+    ev.target.disabled = true;
+    appConfig.todayFive = { date: todayISO(), items: cleaned };
+    await saveConfig();
+    todayFiveEditing = false; renderRules(main);
+  };
+}
+async function createTodayFive(m, iso){
+  if(todayFiveBusy || todayFiveCurrent()) return false;
+  todayFiveBusy = true;
+  try{
+    const lines = await buildTodayFiveLines(m);
+    if(!todayFiveCurrent()){
+      appConfig.todayFive = { date: iso, items: lines.map(t=>({id:tfId(), text:t, done:false})) };
+      await saveConfig();
+    }
+  } finally { todayFiveBusy = false; }
+  return true;
+}
+/* Safety net: if the list wasn't built when the check-in finished (e.g. the page was closed), build it when Rules opens. */
+async function maybeBuildTodayFive(main){
+  const iso = todayISO();
+  const m = checkinsData['morning:'+iso];
+  if(!m || todayFiveCurrent() || todayFiveBusy) return;
+  await createTodayFive(m, iso);
+  if(currentView==='rules' && main.isConnected) renderRules(main);
+}
+
 let rulesEditing = false;
 let rulesDraft = [];
 function attrSafe(s){ return escapeHtml(s||'').replace(/"/g,'&quot;'); }
@@ -1707,6 +1867,7 @@ function renderRules(main){
     <div class="page-eyebrow">Reference</div>
     <div class="page-title">Rules and standards</div>
     <div class="standards-note">One line per field, no storytelling. This is a tool for discipline and clarity — not therapy or motivation. Results come from consistency, not customization. Questions should clarify execution, not replace it.</div>
+    ${todayFiveCardHtml()}
     <div class="card">
       ${todayCard}
     </div>
@@ -1720,6 +1881,9 @@ function renderRules(main){
       </ul>
     </div>
   `;
+
+  wireTodayFive(main);
+  maybeBuildTodayFive(main);
 
   // Every line can be checked off. Lines already verified by a logged check-in stay checked.
   main.querySelectorAll('.tracked-row').forEach(row=>{
@@ -1856,7 +2020,7 @@ let deleteBusy = false;
 const WARN_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>';
 const DONE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 function freshAppConfig(){
-  return { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{}, nonNegotiables: defaultNonNegotiables() };
+  return { vision:{}, notes:[], settings:{morningTime:'', eveningTime:'', morningOn:false, eveningOn:false, domainsEnabled:false}, onboardingComplete:false, manualNonNegotiables:{}, nonNegotiables: defaultNonNegotiables(), todayFive:null };
 }
 function clearAllLocalDrafts(){
   try{
