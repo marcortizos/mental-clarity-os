@@ -462,7 +462,7 @@
     <div class="brand-text">Mental Clarity<span>Operating System</span></div>
   </div>
   <nav id="nav"></nav>
-  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.<br><a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a></div>
+  <div class="sidebar-footer">Structure over willpower.<br>Consistency over intensity.<br><a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a> &nbsp;&middot;&nbsp; <a href="#" id="sidebarSignOut">Sign out</a></div>
 </div>
 
 <div id="main"></div>
@@ -2408,6 +2408,7 @@ async function handleAuthSubmit(){
   await finishBoot(bootStartIn);
   render();
 }
+(function(){ const so = document.getElementById('sidebarSignOut'); if(so) so.onclick = (e)=>{ e.preventDefault(); signOut(); }; })();
 function signOut(){
   supabaseClient.auth.signOut();
   currentUser = null;
