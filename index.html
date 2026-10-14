@@ -1186,8 +1186,8 @@ Task: You are reading a person's own daily check-in lines from the last two week
 }
 
 /* ============================= SHARE CARD ============================= */
-// Turns one line into a 1080x1920 story card. The user taps it, so nothing is shared unless they choose.
-async function shareLineCard(text, label){
+// Builds a 1080x1920 story card (PNG). Nothing leaves the device unless the person taps Share or Save.
+async function buildLineCardBlob(text, eyebrowBase, name){
   try{ await document.fonts.load('600 64px "Space Grotesk"'); await document.fonts.load('500 28px "Inter"'); }catch(e){}
   const W=1080, H=1920;
   const c = document.createElement('canvas'); c.width=W; c.height=H;
@@ -1198,37 +1198,111 @@ async function shareLineCard(text, label){
   g.fillStyle = rg; g.fillRect(0,0,W,H);
   const left = 100, maxW = W - 200;
   g.textBaseline = 'alphabetic';
-  // eyebrow
-  g.fillStyle = '#8B7CF6'; g.font = '600 30px "Space Grotesk", sans-serif';
-  try{ g.letterSpacing = '6px'; }catch(e){}
-  const eyebrow = (label||"TODAY'S STANDARD").toUpperCase();
+  const setLS = (v)=>{ try{ g.letterSpacing = v; }catch(e){} };
+  // eyebrow, e.g. "TODAY'S INTENTION FOR MARC"; shrink the type if a long name would overflow
+  // With a name: "MARC'S INTENTION TODAY" / "MARC'S STANDARD TONIGHT". Without: "TODAY'S INTENTION" / "TONIGHT'S STANDARD".
+  const poss = name ? (/s$/i.test(name) ? name+"'" : name+"'s") : '';
+  const eyebrow = (name ? (poss + (eyebrowBase.startsWith('Today') ? ' intention today' : ' standard tonight')) : eyebrowBase).toUpperCase();
+  let eb = 30;
+  g.font = '600 '+eb+'px "Space Grotesk", sans-serif'; setLS('6px');
+  while(g.measureText(eyebrow).width > maxW && eb > 18){ eb -= 2; g.font = '600 '+eb+'px "Space Grotesk", sans-serif'; }
   // wrap the line
-  g.font = '600 72px "Space Grotesk", sans-serif';
-  try{ g.letterSpacing = '0px'; }catch(e){}
+  g.font = '600 72px "Space Grotesk", sans-serif'; setLS('0px');
   const words = String(text).split(/\s+/); const rows = []; let cur = '';
   words.forEach(w=>{ const t = cur ? cur+' '+w : w; if(g.measureText(t).width > maxW && cur){ rows.push(cur); cur = w; } else cur = t; });
   if(cur) rows.push(cur);
   const lh = 96; const blockH = rows.length*lh;
   const top = Math.round(H/2 - blockH/2);
-  g.fillStyle = '#8B7CF6'; g.font = '600 30px "Space Grotesk", sans-serif';
-  try{ g.letterSpacing = '6px'; }catch(e){}
+  g.fillStyle = '#8B7CF6'; g.font = '600 '+eb+'px "Space Grotesk", sans-serif'; setLS('6px');
   g.fillText(eyebrow, left, top - 70);
-  g.fillStyle = '#F4F2FF'; g.font = '600 72px "Space Grotesk", sans-serif';
-  try{ g.letterSpacing = '0px'; }catch(e){}
+  g.fillStyle = '#F4F2FF'; g.font = '600 72px "Space Grotesk", sans-serif'; setLS('0px');
   rows.forEach((r,i)=> g.fillText(r, left, top + 72 + i*lh));
-  // footer
   g.fillStyle = '#8B7CF6'; g.font = '600 34px "Space Grotesk", sans-serif';
   g.fillText('Mental Clarity OS', left, H - 150);
   g.fillStyle = 'rgba(244,242,255,0.5)'; g.font = '500 28px "Inter", sans-serif';
-  g.fillText('app.marcortizos.com', left, H - 100);
-  const blob = await new Promise(r=>c.toBlob(r,'image/png'));
-  if(!blob) return;
-  const file = new File([blob], 'mcos-line.png', {type:'image/png'});
-  try{
-    if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); return; }
-  }catch(e){ if(e && e.name==='AbortError') return; }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mcos-line.png';
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  g.fillText('@mentalclarityos  \u00B7  app.marcortizos.com', left, H - 100);
+  return await new Promise(r=>c.toBlob(r,'image/png'));
+}
+function cleanShareName(v){ return String(v||'').replace(/[<>]/g,'').trim().replace(/\s+/g,' ').slice(0,18); }
+function closeShareModal(){
+  const m = document.getElementById('shareModal');
+  if(m){ const img = m.querySelector('img'); if(img && img.dataset.url) URL.revokeObjectURL(img.dataset.url); m.remove(); }
+  document.removeEventListener('keydown', shareModalKeydown);
+}
+function shareModalKeydown(e){ if(e.key==='Escape') closeShareModal(); }
+async function openShareModal(text, flowKey){
+  closeShareModal();
+  const base = flowKey==='morning' ? "Today's intention" : "Tonight's standard";
+  const saved = cleanShareName(appConfig.settings && appConfig.settings.shareName);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'shareModal';
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+      <div class="modal-title" id="shTitle">Share your line</div>
+      <div class="modal-body">
+        <div style="display:flex;justify-content:center;margin:4px 0 14px;"><img id="shImg" alt="Preview of your card" style="width:auto;max-width:100%;max-height:300px;border-radius:12px;border:1px solid var(--border-soft);"></div>
+        <label class="modal-label" for="shName">Name on the card (optional)</label>
+        <input class="nn-input" id="shName" maxlength="18" autocomplete="given-name" placeholder="First name" value="${escapeHtml(saved)}">
+        <p class="modal-fine" id="shHint"></p>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;">
+          <span class="modal-fine" style="margin:0;">Tag @mentalclarityos if you\u2019d like.</span>
+          <button class="ghost" id="shCopy" type="button" style="padding:6px 12px;font-size:12.5px;">Copy handle</button>
+        </div>
+      </div>
+      <div class="btnrow" style="flex-wrap:wrap;">
+        <button class="ghost" id="shClose" type="button">Close</button>
+        <button class="ghost" id="shSave" type="button">Save image</button>
+        <button class="primary" id="shShare" type="button" style="display:none;">Share</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.addEventListener('keydown', shareModalKeydown);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeShareModal(); });
+  const img = overlay.querySelector('#shImg'), nameEl = overlay.querySelector('#shName');
+  const hint = overlay.querySelector('#shHint');
+  let blob = null, token = 0;
+  const regen = async ()=>{
+    const my = ++token;
+    const b = await buildLineCardBlob(text, base, cleanShareName(nameEl.value));
+    if(my!==token || !b || !document.getElementById('shareModal')) return;
+    blob = b;
+    if(img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+    img.dataset.url = URL.createObjectURL(b); img.src = img.dataset.url;
+  };
+  const canShareFiles = ()=>{ try{ return !!(navigator.share && navigator.canShare && navigator.canShare({files:[new File([new Blob(['x'])],'x.png',{type:'image/png'})]})); }catch(e){ return false; } };
+  const shareBtn = overlay.querySelector('#shShare');
+  if(canShareFiles()){ shareBtn.style.display = ''; hint.textContent = 'Share opens your phone’s share menu, where you can pick Instagram, Facebook, X or Messages. Nothing is posted until you choose.'; }
+  else { hint.textContent = 'Save the image, then post it from your phone. Nothing is posted for you.'; }
+  const persistName = ()=>{
+    const n = cleanShareName(nameEl.value);
+    if(!appConfig.settings) appConfig.settings = {};
+    if((appConfig.settings.shareName||'') !== n){ appConfig.settings.shareName = n; saveConfig(); }
+  };
+  let t = null;
+  nameEl.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(regen, 250); });
+  nameEl.addEventListener('blur', persistName);
+  const copyBtn = overlay.querySelector('#shCopy');
+  copyBtn.onclick = async ()=>{
+    const h = '@mentalclarityos';
+    let ok = false;
+    try{ await navigator.clipboard.writeText(h); ok = true; }catch(e){
+      try{ const ta = document.createElement('textarea'); ta.value = h; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); }catch(e2){}
+    }
+    copyBtn.textContent = ok ? 'Copied' : 'Copy failed';
+    setTimeout(()=>{ copyBtn.textContent = 'Copy handle'; }, 1600);
+  };
+  overlay.querySelector('#shClose').onclick = ()=>{ persistName(); closeShareModal(); };
+  overlay.querySelector('#shSave').onclick = async ()=>{
+    persistName(); if(!blob) await regen();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mcos-line.png';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  };
+  shareBtn.onclick = async ()=>{
+    persistName(); if(!blob) await regen();
+    try{ await navigator.share({ files:[new File([blob],'mcos-line.png',{type:'image/png'})] }); }
+    catch(e){ if(!(e && e.name==='AbortError')) hint.textContent = 'Couldn’t open the share menu. Use Save image instead.'; }
+  };
+  regen();
 }
 
 /* ============================= CHECKIN FLOW (morning/evening) ============================= */
@@ -1557,7 +1631,7 @@ function renderCompleteView(main, flow, flowKey, entry, weeklyDate=null){
     </div>
   `;
   const shareBtn = document.getElementById('shareBtn');
-  if(shareBtn) shareBtn.onclick = ()=> shareLineCard(flowKey==='morning' ? entry.intention : entry.reinforcement, flowKey==='morning' ? "Today's intention" : "Tonight's standard");
+  if(shareBtn) shareBtn.onclick = ()=> openShareModal(flowKey==='morning' ? entry.intention : entry.reinforcement, flowKey);
   document.getElementById('doneBtn').onclick = ()=>{ currentView = 'home'; render(); };
   document.getElementById('redoBtn').onclick = ()=>{
     const domain = entry.domain || 'personal';
