@@ -449,6 +449,32 @@
   .auth-toggle{margin-top:22px;font-size:13px;color:var(--text-muted);}
   .auth-toggle button{background:none;border:none;color:var(--accent-glow);cursor:pointer;font-family:var(--font-body);font-size:13px;padding:0;text-decoration:underline;}
   #authBtn{width:100%;margin-top:22px;justify-content:center;display:flex;}
+
+  /* ---- Motion polish: calm, slow, restrained. All of it is off for reduced-motion users. ---- */
+  @keyframes mcosCheck{to{stroke-dashoffset:0;}}
+  @keyframes mcosRing{0%{box-shadow:0 0 0 0 rgba(139,124,246,0.35);}100%{box-shadow:0 0 0 14px rgba(139,124,246,0);}}
+  main.blur-in .stat-card,main.blur-in .today-row .flow-card{animation:mcosFadeUp .55s cubic-bezier(.2,.7,.2,1) both;}
+  main.blur-in .stat-card:nth-child(1){animation-delay:.10s;}
+  main.blur-in .stat-card:nth-child(2){animation-delay:.18s;}
+  main.blur-in .stat-card:nth-child(3){animation-delay:.26s;}
+  main.blur-in .today-row:nth-of-type(1) .flow-card:nth-child(1){animation-delay:.30s;}
+  main.blur-in .today-row:nth-of-type(1) .flow-card:nth-child(2){animation-delay:.38s;}
+  .reveal{opacity:0;transform:translateY(12px);transition:opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1);}
+  .reveal.in{opacity:1;transform:none;}
+  .complete-mark svg path{stroke-dasharray:22;stroke-dashoffset:22;animation:mcosCheck .55s ease .2s forwards;}
+  .complete-mark{animation:mcosRing 1.1s ease-out .15s 1;}
+  .flow-card:active{transform:scale(.985);}
+  button.primary{transition:opacity .12s, transform .12s, box-shadow .2s;}
+  button.primary:active{transform:scale(.97);}
+  @media (hover:hover){
+    .flow-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(139,124,246,0.10);}
+    button.primary:hover{box-shadow:0 6px 20px rgba(139,124,246,0.28);}
+  }
+  @media (prefers-reduced-motion:reduce){
+    main.blur-in .stat-card,main.blur-in .today-row .flow-card,.complete-mark,.complete-mark svg path{animation:none !important;stroke-dashoffset:0 !important;}
+    .reveal{opacity:1;transform:none;transition:none;}
+    .flow-card:hover,.flow-card:active,button.primary:active{transform:none;}
+  }
 </style>
 </head>
 <body>
@@ -776,17 +802,27 @@ function weeklyCountForMonth(monthKey){
 function isMonthlyUnlocked(monthKey){
   return weeklyCountForMonth(monthKey) >= 4;
 }
+// A day counts once any daily check-in is logged (morning OR evening).
+// Today doesn't break the streak just because it's still open.
 function computeStreak(){
   let streak = 0;
   let d = new Date();
-  while(true){
-    const iso = todayISO(d);
-    const m = checkinsData['morning:'+iso], e = checkinsData['evening:'+iso];
-    if(m && e){ streak++; d.setDate(d.getDate()-1); }
-    else break;
-  }
+  const hasDay = (dt)=>{ const iso = todayISO(dt); return !!(checkinsData['morning:'+iso] || checkinsData['evening:'+iso]); };
+  if(!hasDay(d)) d.setDate(d.getDate()-1);
+  while(hasDay(d)){ streak++; d.setDate(d.getDate()-1); }
   return streak;
 }
+// Most recent logged value of a daily answer, looking back up to 14 days before `beforeIso`.
+function recentAnswer(type, key, beforeIso){
+  const d = new Date(beforeIso+'T12:00:00');
+  for(let i=0;i<14;i++){
+    d.setDate(d.getDate()-1);
+    const e = checkinsData[type+':'+todayISO(d)];
+    if(e && e[key]) return { text:e[key], iso:todayISO(d), daysAgo:i+1 };
+  }
+  return null;
+}
+function agoLabel(n){ return n===1 ? 'Yesterday' : n+' days ago'; }
 
 const NAV_ICONS = {
   home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
@@ -982,6 +1018,12 @@ function renderHome(main){
     </div></details>`;
   const todayFocusHtml = focusParts.length ? `<div class="focus-box"><div class="focus-label">Today's focus</div>${focusParts.join('')}</div>` : '';
   const eDone = !!checkinsData['evening:'+iso];
+  // Pick up where the last check-in left off: the latest "correction" or "intention" the user wrote.
+  const lastCorr = recentAnswer('evening','correction',iso);
+  const lastInt = recentAnswer('morning','intention',iso);
+  const carryHtml = (!mDone && (lastCorr || lastInt)) ? `<div class="focus-box"><div class="focus-label">Where you left off</div>${
+    lastCorr ? `<div class="focus-item"><span class="k">${agoLabel(lastCorr.daysAgo)}, your correction</span>${escapeHtml(lastCorr.text)}</div>` : ''}${
+    lastInt ? `<div class="focus-item"><span class="k">${agoLabel(lastInt.daysAgo)}, your intention</span>${escapeHtml(lastInt.text)}</div>` : ''}</div>` : '';
   const streak = computeStreak();
   const totalLogged = Object.keys(checkinsData).length;
   const wm = mondayOf();
@@ -995,8 +1037,10 @@ function renderHome(main){
     <div class="page-sub voice">Results come from consistency, not customization.</div>
     ${todayFocusHtml}
 
+    ${carryHtml}
+    <div id="patternSlot"></div>
     <div class="stat-row">
-      <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value">${streak} <small>day${streak===1?'':'s'}</small></div></div>
+      <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value"><span class="cu" data-to="${streak}">${streak}</span> <small>day${streak===1?'':'s'}</small></div></div>
       <div class="stat-card"><div class="stat-label">This week</div><div class="stat-value">${weekCount} <small>/ 7 logged</small></div></div>
       <div class="stat-card"><div class="stat-label">Total entries</div><div class="stat-value">${totalLogged}</div></div>
     </div>
@@ -1038,11 +1082,140 @@ function renderHome(main){
     ${installNudgeHtml()}
     <div class="feedback-line">Something confusing or broken? <a href="mailto:marcortiz.ai@gmail.com?subject=Mental%20Clarity%20OS%20feedback" data-mail="Mental Clarity OS feedback" title="marcortiz.ai@gmail.com">Send feedback</a></div>
   `;
+  loadPattern();
+  motionPolish(main);
   const nudgeBtn = document.getElementById('installDismiss');
   if(nudgeBtn) nudgeBtn.onclick = ()=>{
     try{ localStorage.setItem('mcos_install_nudge_dismissed','1'); }catch(e){}
     const n = document.getElementById('installNudge'); if(n) n.remove();
   };
+}
+
+
+/* ============================= MOTION POLISH ============================= */
+function motionPolish(root){
+  let reduced = false;
+  try{ reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){}
+  if(reduced) return;
+  // Count-up on the streak number
+  root.querySelectorAll('.cu').forEach(el=>{
+    const to = parseInt(el.dataset.to,10);
+    if(!(to>0)) return;
+    const t0 = performance.now(), dur = 700;
+    el.textContent = '0';
+    const tick = (now)=>{
+      const p = Math.min(1, (now-t0)/dur);
+      el.textContent = String(Math.round(to * (1 - Math.pow(1-p,3))));
+      if(p<1) requestAnimationFrame(tick); else el.textContent = String(to);
+    };
+    setTimeout(()=>requestAnimationFrame(tick), 350);
+  });
+  // Scroll reveal for rows below the fold. Safety timer guarantees nothing stays hidden.
+  const rows = Array.from(root.querySelectorAll('.today-row')).slice(1);
+  if(!rows.length || !('IntersectionObserver' in window)) return;
+  rows.forEach(r=>r.classList.add('reveal'));
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  },{threshold:0.15});
+  rows.forEach(r=>io.observe(r));
+  setTimeout(()=>rows.forEach(r=>r.classList.add('in')), 2500);
+}
+
+/* ============================= PATTERN NOTICED ============================= */
+// Once there are 3+ logged days, look across the last 14 days of the user's own lines and name ONE thing that repeats.
+// At most one AI call per device per day (result cached, including "nothing repeats").
+let patternInFlight = false;
+function showPatternBox(text){
+  const slot = document.getElementById('patternSlot');
+  if(!slot || !text) return;
+  slot.innerHTML = `<div class="focus-box"><div class="focus-label">Pattern noticed</div><div class="focus-item">${escapeHtml(text)}</div></div>`;
+}
+async function loadPattern(){
+  const iso = todayISO();
+  const ck = 'mcos_pattern:' + (currentUser?.id || 'anon') + ':' + iso;
+  try{
+    const cached = localStorage.getItem(ck);
+    if(cached !== null){ if(cached) showPatternBox(cached); return; }
+  }catch(e){}
+  if(patternInFlight) return;
+  // Gather the last 14 days of daily lines
+  const lines = [];
+  const days = new Set();
+  const d = new Date();
+  for(let i=0;i<14;i++){
+    const di = todayISO(d);
+    ['morning','evening'].forEach(t=>{
+      const e = checkinsData[t+':'+di];
+      if(!e) return;
+      FLOWS[t].questions.forEach(q=>{ if(e[q.key]) { lines.push(`${di} ${t} (${q.label}): ${e[q.key]}`); days.add(di); } });
+    });
+    d.setDate(d.getDate()-1);
+  }
+  if(days.size < 3) return;
+  patternInFlight = true;
+  try{
+    const sys = PERSONA_PROMPT + `
+
+Task: You are reading a person's own daily check-in lines from the last two weeks. Respond ONLY with strict JSON and nothing else: {"pattern": "..."} or {"pattern": null}. Name ONE thing that genuinely repeats across at least two different days in their own words (a recurring task, person, avoidance, or standard). Write 1 to 2 short sentences, in second person, calm and direct, no hype, no therapy language, no diagnosis. Point to what they wrote, then optionally end with one plain question. Never invent details. If nothing genuinely repeats, return {"pattern": null}.`;
+    let text = await callClaude(sys, lines.join('\n'));
+    text = text.replace(/```json|```/g,'').trim();
+    const s = text.indexOf('{'), e2 = text.lastIndexOf('}');
+    if(s===-1 || e2===-1) return;
+    const parsed = JSON.parse(text.slice(s, e2+1));
+    const p = (parsed.pattern && typeof parsed.pattern==='string') ? parsed.pattern.trim() : '';
+    try{ localStorage.setItem(ck, p); }catch(e){}
+    if(p && currentView==='home') showPatternBox(p);
+  }catch(err){
+    console.error('loadPattern failed:', err);   // not cached, so it can retry next visit
+  }finally{
+    patternInFlight = false;
+  }
+}
+
+/* ============================= SHARE CARD ============================= */
+// Turns one line into a 1080x1920 story card. The user taps it, so nothing is shared unless they choose.
+async function shareLineCard(text, label){
+  try{ await document.fonts.load('600 64px "Space Grotesk"'); await document.fonts.load('500 28px "Inter"'); }catch(e){}
+  const W=1080, H=1920;
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0A0812'; g.fillRect(0,0,W,H);
+  const rg = g.createRadialGradient(W/2, H*0.42, 40, W/2, H*0.42, 860);
+  rg.addColorStop(0,'rgba(139,124,246,0.24)'); rg.addColorStop(1,'rgba(139,124,246,0)');
+  g.fillStyle = rg; g.fillRect(0,0,W,H);
+  const left = 100, maxW = W - 200;
+  g.textBaseline = 'alphabetic';
+  // eyebrow
+  g.fillStyle = '#8B7CF6'; g.font = '600 30px "Space Grotesk", sans-serif';
+  try{ g.letterSpacing = '6px'; }catch(e){}
+  const eyebrow = (label||"TODAY'S STANDARD").toUpperCase();
+  // wrap the line
+  g.font = '600 72px "Space Grotesk", sans-serif';
+  try{ g.letterSpacing = '0px'; }catch(e){}
+  const words = String(text).split(/\s+/); const rows = []; let cur = '';
+  words.forEach(w=>{ const t = cur ? cur+' '+w : w; if(g.measureText(t).width > maxW && cur){ rows.push(cur); cur = w; } else cur = t; });
+  if(cur) rows.push(cur);
+  const lh = 96; const blockH = rows.length*lh;
+  const top = Math.round(H/2 - blockH/2);
+  g.fillStyle = '#8B7CF6'; g.font = '600 30px "Space Grotesk", sans-serif';
+  try{ g.letterSpacing = '6px'; }catch(e){}
+  g.fillText(eyebrow, left, top - 70);
+  g.fillStyle = '#F4F2FF'; g.font = '600 72px "Space Grotesk", sans-serif';
+  try{ g.letterSpacing = '0px'; }catch(e){}
+  rows.forEach((r,i)=> g.fillText(r, left, top + 72 + i*lh));
+  // footer
+  g.fillStyle = '#8B7CF6'; g.font = '600 34px "Space Grotesk", sans-serif';
+  g.fillText('Mental Clarity OS', left, H - 150);
+  g.fillStyle = 'rgba(244,242,255,0.5)'; g.font = '500 28px "Inter", sans-serif';
+  g.fillText('app.marcortizos.com', left, H - 100);
+  const blob = await new Promise(r=>c.toBlob(r,'image/png'));
+  if(!blob) return;
+  const file = new File([blob], 'mcos-line.png', {type:'image/png'});
+  try{
+    if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); return; }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mcos-line.png';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
 }
 
 /* ============================= CHECKIN FLOW (morning/evening) ============================= */
@@ -1121,6 +1294,19 @@ function renderCheckinFlow(main, flowKey, weeklyDate=null){
       <div class="progress-dot" style="left:${pct}%"></div>
     </div>
 
+    ${(()=>{
+      if(flowState.index!==0) return '';
+      const iso0 = weeklyDate || todayISO();
+      if(flowKey==='evening'){
+        const m = checkinsData['morning:'+iso0];
+        if(m && (m.priority||m.mustDo)) return `<div class="focus-box"><div class="focus-label">This morning you set</div>${m.priority?`<div class="focus-item"><span class="k">Top priority</span>${escapeHtml(m.priority)}</div>`:''}${m.mustDo?`<div class="focus-item"><span class="k">Must-do</span>${escapeHtml(m.mustDo)}</div>`:''}</div>`;
+      }
+      if(flowKey==='morning'){
+        const c = recentAnswer('evening','correction',iso0);
+        if(c) return `<div class="focus-box"><div class="focus-label">${agoLabel(c.daysAgo)}, your correction</div><div class="focus-item">${escapeHtml(c.text)}</div></div>`;
+      }
+      return '';
+    })()}
     <div class="qcounter">Question ${flowState.index+1} of ${total}</div>
     <div class="qtext">${q.q}</div>
     <div class="answer-wrap">
@@ -1138,7 +1324,7 @@ function renderCheckinFlow(main, flowKey, weeklyDate=null){
 
   document.getElementById('nextBtn').onclick = ()=> handleNext(main, flowKey, weeklyDate);
   const backBtn = document.getElementById('backBtn');
-  if(backBtn) backBtn.onclick = ()=>{ flowState.index--; renderCheckinFlow(main, flowKey, weeklyDate); };
+  if(backBtn) backBtn.onclick = ()=>{ stopActiveRecognition(); flowState.index--; renderCheckinFlow(main, flowKey, weeklyDate); };
   const ta = document.getElementById('answerInput');
   ta.focus();
   ta.addEventListener('input', ()=>{
@@ -1186,15 +1372,20 @@ function setupVoiceInput(taEl, btnEl){
       return;
     }
     activeRecognition = recognition;
-    recognition.continuous = false;
+    recognition.continuous = true;      // keep listening through pauses instead of cutting off at the first one
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+    recognition.lang = (navigator.language && /^[a-z]{2}(-[A-Z]{2})?$/.test(navigator.language)) ? navigator.language : 'en-US';
     recognition.onstart = ()=>{ listening = true; btnEl.classList.add('listening'); };
     recognition.onresult = (e)=>{
-      const transcript = e.results[0][0].transcript;
-      taEl.value = baseText + transcript;
+      // Rebuild from every result so a pause doesn't drop earlier speech
+      let transcript = '';
+      for(let i=0;i<e.results.length;i++){ transcript += e.results[i][0].transcript; }
+      taEl.value = baseText + transcript.replace(/^\s+/, '');
+      taEl.scrollTop = taEl.scrollHeight;
     };
     recognition.onerror = (e)=>{
+      if(e.error==='aborted') return;   // we stopped it ourselves
       listening = false;
       btnEl.classList.remove('listening');
       if(activeRecognition===recognition) activeRecognition = null;
@@ -1236,8 +1427,10 @@ async function handleNext(main, flowKey, weeklyDate){
   const flow = FLOWS[flowKey];
   const q = flow.questions[flowState.index];
   const ta = document.getElementById('answerInput');
+  stopActiveRecognition();             // mic must not keep writing after Next
   const raw = ta.value.trim();
-  if(!raw) return;
+  if(!raw || flowState.busy) return;   // blocks a second submit (e.g. Ctrl+Enter while refining)
+  flowState.busy = true;
 
   const btnrow = document.getElementById('btnrow');
   const statusArea = document.getElementById('statusArea');
@@ -1255,6 +1448,7 @@ async function handleNext(main, flowKey, weeklyDate){
     await new Promise(r=>setTimeout(r, 550));
   }
 
+  flowState.busy = false;
   if(flowState.index < flow.questions.length-1){
     flowState.index++;
     flowState.draftText = '';
@@ -1329,9 +1523,12 @@ function renderCompleteView(main, flow, flowKey, entry, weeklyDate=null){
       <div class="btnrow">
         <button class="primary" id="doneBtn">Back to dashboard</button>
         <button class="ghost" id="redoBtn">Redo this entry</button>
+        ${(flowKey==='morning' && entry.intention) || (flowKey==='evening' && entry.reinforcement) ? '<button class="ghost" id="shareBtn">Share this line</button>' : ''}
       </div>
     </div>
   `;
+  const shareBtn = document.getElementById('shareBtn');
+  if(shareBtn) shareBtn.onclick = ()=> shareLineCard(flowKey==='morning' ? entry.intention : entry.reinforcement, flowKey==='morning' ? "Today's intention" : "Tonight's standard");
   document.getElementById('doneBtn').onclick = ()=>{ currentView = 'home'; render(); };
   document.getElementById('redoBtn').onclick = ()=>{
     const domain = entry.domain || 'personal';
