@@ -475,6 +475,8 @@
     .reveal{opacity:1;transform:none;transition:none;}
     .flow-card:hover,.flow-card:active,button.primary:active{transform:none;}
   }
+  .flow-card.locked{opacity:.55;}
+  .flow-status.upnext{background:rgba(139,124,246,0.18);color:#C9C1FF;}
 </style>
 </head>
 <body>
@@ -802,6 +804,12 @@ function weeklyCountForMonth(monthKey){
 function isMonthlyUnlocked(monthKey){
   return weeklyCountForMonth(monthKey) >= 4;
 }
+
+// Time-aware check-ins: the evening review opens at 5pm (device local time) so people aren't handed both at once.
+const EVENING_OPENS_HOUR = 17;
+let eveningOverride = false;
+function eveningIsEarly(){ const h = new Date().getHours(); return h >= 5 && h < EVENING_OPENS_HOUR; }
+
 // A day counts once any daily check-in is logged (morning OR evening).
 // Today doesn't break the streak just because it's still open.
 function computeStreak(){
@@ -1031,6 +1039,26 @@ function renderHome(main){
   const mk = monthKeyOf();
   const monthCount = weeklyCountForMonth(mk);
 
+  // One thing at a time: whichever check-in fits the time of day comes first and says "Up next".
+  const early = eveningIsEarly() && !eDone;
+  const mCard = (primary)=>`
+      <div class="flow-card" onclick="currentView='morning';render();">
+        <div class="flow-card-top">
+          <div class="flow-card-title">Morning check-in</div>
+          <div class="flow-status ${mDone?'done':(primary?'upnext':'pending')}">${mDone?'Done':(primary?'Up next':'Still open')}</div>
+        </div>
+        <div class="flow-card-desc">${FLOWS.morning.desc}</div>
+      </div>`;
+  const eCard = (primary)=>`
+      <div class="flow-card${early?' locked':''}" onclick="currentView='evening';render();">
+        <div class="flow-card-top">
+          <div class="flow-card-title">Evening review</div>
+          <div class="flow-status ${eDone?'done':(early?'pending':(primary?'upnext':'pending'))}">${eDone?'Done':(early?'Opens 5pm':(primary?'Up next':'Open'))}</div>
+        </div>
+        <div class="flow-card-desc">${FLOWS.evening.desc}</div>
+      </div>`;
+  const eveningFirst = !early && !eDone;
+  const todayRowHtml = `<div class="today-row">${eveningFirst ? eCard(true)+mCard(false) : mCard(!mDone)+eCard(false)}</div>`;
   main.innerHTML = `
     <div class="page-eyebrow">${new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'})}</div>
     <div class="page-title">Today's standard</div>
@@ -1045,22 +1073,7 @@ function renderHome(main){
       <div class="stat-card"><div class="stat-label">Total entries</div><div class="stat-value">${totalLogged}</div></div>
     </div>
 
-    <div class="today-row">
-      <div class="flow-card" onclick="currentView='morning';render();">
-        <div class="flow-card-top">
-          <div class="flow-card-title">Morning check-in</div>
-          <div class="flow-status ${mDone?'done':'pending'}">${mDone?'Done':'Open'}</div>
-        </div>
-        <div class="flow-card-desc">${FLOWS.morning.desc}</div>
-      </div>
-      <div class="flow-card" onclick="currentView='evening';render();">
-        <div class="flow-card-top">
-          <div class="flow-card-title">Evening review</div>
-          <div class="flow-status ${eDone?'done':'pending'}">${eDone?'Done':'Open'}</div>
-        </div>
-        <div class="flow-card-desc">${FLOWS.evening.desc}</div>
-      </div>
-    </div>
+    ${todayRowHtml}
 
     <div class="today-row">
       <div class="flow-card" onclick="currentView='weekly';render();">
@@ -1269,6 +1282,22 @@ function renderCheckinFlow(main, flowKey, weeklyDate=null){
 
   if(existing && flowState.phase==='complete'){
     renderCompleteView(main, flow, flowKey, existing);
+    return;
+  }
+
+  if(flowKey==='evening' && !weeklyDate && !existing && !eveningOverride && eveningIsEarly() && Object.keys(flowState.answers||{}).length===0 && !flowState.draftText){
+    const mDoneNow = !!checkinsData['morning:'+dateKey];
+    main.innerHTML = `
+      <div class="page-eyebrow">Evening review</div>
+      <div class="page-title">Opens at 5pm</div>
+      <div class="page-sub voice">${mDoneNow ? "Your morning is done. Come back tonight to close the day." : "Start with your morning check-in. The evening review closes the day it opens."}</div>
+      <div class="btnrow" style="margin-top:22px;">
+        ${mDoneNow ? '<button class="primary" id="gateHome">Back to dashboard</button>' : '<button class="primary" id="gateMorning">Do morning check-in</button>'}
+        <button class="ghost" id="gateOpen">Open evening anyway</button>
+      </div>`;
+    const gm = document.getElementById('gateMorning'); if(gm) gm.onclick = ()=>{ currentView='morning'; render(); };
+    const gh = document.getElementById('gateHome'); if(gh) gh.onclick = ()=>{ currentView='home'; render(); };
+    document.getElementById('gateOpen').onclick = ()=>{ eveningOverride = true; renderCheckinFlow(main, flowKey, weeklyDate); };
     return;
   }
 
