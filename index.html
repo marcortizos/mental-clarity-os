@@ -1233,7 +1233,7 @@ function shareModalKeydown(e){ if(e.key==='Escape') closeShareModal(); }
 async function openShareModal(text, flowKey){
   closeShareModal();
   const base = flowKey==='morning' ? "Today's intention" : "Tonight's standard";
-  const saved = cleanShareName(appConfig.settings && appConfig.settings.shareName);
+  const saved = cleanShareName((appConfig.settings && appConfig.settings.shareName) || (currentUser && currentUser.user_metadata && currentUser.user_metadata.first_name));
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay'; overlay.id = 'shareModal';
   overlay.innerHTML = `
@@ -1241,8 +1241,8 @@ async function openShareModal(text, flowKey){
       <div class="modal-title" id="shTitle">Share your line</div>
       <div class="modal-body">
         <div style="display:flex;justify-content:center;margin:4px 0 14px;"><img id="shImg" alt="Preview of your card" style="width:auto;max-width:100%;max-height:300px;border-radius:12px;border:1px solid var(--border-soft);"></div>
-        <label class="modal-label" for="shName">Name on the card (optional)</label>
-        <input class="nn-input" id="shName" maxlength="18" autocomplete="given-name" placeholder="First name" value="${escapeHtml(saved)}">
+        <label class="modal-label" for="shName">Name on the card</label>
+        <input class="nn-input" id="shName" maxlength="18" autocomplete="given-name" placeholder="Your first name" value="${escapeHtml(saved)}">
         <p class="modal-fine" id="shHint"></p>
         <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;">
           <span class="modal-fine" style="margin:0;">Tag @mentalclarityos if you\u2019d like.</span>
@@ -1260,6 +1260,7 @@ async function openShareModal(text, flowKey){
   overlay.addEventListener('click', e=>{ if(e.target===overlay) closeShareModal(); });
   const img = overlay.querySelector('#shImg'), nameEl = overlay.querySelector('#shName');
   const hint = overlay.querySelector('#shHint');
+  if(!saved) overlay.querySelector('.modal-label').textContent = 'Add your first name. It goes on the card and is remembered for next time.';
   let blob = null, token = 0;
   const regen = async ()=>{
     const my = ++token;
@@ -1279,7 +1280,16 @@ async function openShareModal(text, flowKey){
     if((appConfig.settings.shareName||'') !== n){ appConfig.settings.shareName = n; saveConfig(); }
   };
   let t = null;
-  nameEl.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(regen, 250); });
+  // The name is standard: Share and Save stay off until a first name is entered (once; it's remembered after that).
+  const saveBtn = overlay.querySelector('#shSave');
+  const hasName = ()=> cleanShareName(nameEl.value).length > 0;
+  const syncBtns = ()=>{
+    const ok = hasName();
+    saveBtn.disabled = !ok; shareBtn.disabled = !ok;
+    nameEl.style.borderColor = ok ? '' : 'var(--accent-dim)';
+  };
+  syncBtns();
+  nameEl.addEventListener('input', ()=>{ syncBtns(); clearTimeout(t); t = setTimeout(regen, 250); });
   nameEl.addEventListener('blur', persistName);
   const copyBtn = overlay.querySelector('#shCopy');
   copyBtn.onclick = async ()=>{
@@ -1293,11 +1303,13 @@ async function openShareModal(text, flowKey){
   };
   overlay.querySelector('#shClose').onclick = ()=>{ persistName(); closeShareModal(); };
   overlay.querySelector('#shSave').onclick = async ()=>{
+    if(!hasName()) return;
     persistName(); if(!blob) await regen();
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mcos-line.png';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
   };
   shareBtn.onclick = async ()=>{
+    if(!hasName()) return;
     persistName(); if(!blob) await regen();
     try{ await navigator.share({ files:[new File([blob],'mcos-line.png',{type:'image/png'})] }); }
     catch(e){ if(!(e && e.name==='AbortError')) hint.textContent = 'Couldn’t open the share menu. Use Save image instead.'; }
@@ -2610,6 +2622,10 @@ function renderAuth(){
       <div class="auth-title">${authMode==='signin' ? 'Sign in' : 'Create your account'}</div>
       <div class="auth-sub">${authMode==='signin' ? 'Pick up where you left off.' : 'One system, three minutes at a time.'}</div>
 
+      ${authMode==='signup' ? `
+      <div class="auth-field-label">First name</div>
+      <input class="auth-input" type="text" id="authName" placeholder="Your first name" autocomplete="given-name" maxlength="18">
+      ` : ''}
       <div class="auth-field-label">Email</div>
       <input class="auth-input" type="email" id="authEmail" placeholder="you@email.com" autocomplete="email">
       <div class="auth-field-label">Password</div>
@@ -2640,7 +2656,10 @@ async function handleAuthSubmit(){
   const password = document.getElementById('authPassword').value;
   const codeEl = document.getElementById('authCode');
   const code = codeEl ? codeEl.value.trim() : '';
+  const nameEl = document.getElementById('authName');
+  const firstName = nameEl ? cleanShareName(nameEl.value) : '';
   errEl.textContent = '';
+  if(authMode === 'signup' && !firstName){ errEl.textContent = 'Enter your first name.'; return; }
   if(!email || !password){ errEl.textContent = 'Enter both an email and password.'; return; }
   if(authMode === 'signup' && !code){ errEl.textContent = 'Enter the access code from your confirmation email.'; return; }
   btn.disabled = true;
@@ -2657,7 +2676,7 @@ async function handleAuthSubmit(){
       const createRes = await fetch('/api/create-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, code })
+        body: JSON.stringify({ email, password, code, name: firstName })
       });
       const createData = await createRes.json();
       if(!createRes.ok){
