@@ -21,7 +21,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, password, code } = req.body || {};
+    const { email, password, code, name } = req.body || {};
+    // First name is optional on the server (older clients don't send it). Keep it short and plain.
+    const firstName = typeof name === 'string' ? name.replace(/[<>]/g, '').trim().replace(/\s+/g, ' ').slice(0, 18) : '';
     if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
 
     const submitted = (code || '').trim().toUpperCase();
@@ -54,7 +56,7 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password, email_confirm: true }),
+      body: JSON.stringify({ email, password, email_confirm: true, ...(firstName ? { user_metadata: { first_name: firstName } } : {}) }),
     });
 
     const createData = await createRes.json();
