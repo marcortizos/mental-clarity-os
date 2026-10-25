@@ -476,6 +476,9 @@
     .flow-card:hover,.flow-card:active,button.primary:active{transform:none;}
   }
   .flow-card.locked{opacity:.55;}
+  .slim-list{display:grid;gap:8px;margin-bottom:14px;}
+  .slim-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:12px 16px;cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:14px;transition:border-color .12s;}
+  .slim-row:hover{border-color:var(--accent-dim);}
   .flow-status.upnext{background:rgba(139,124,246,0.18);color:#C9C1FF;}
 </style>
 </head>
@@ -1063,33 +1066,19 @@ function renderHome(main){
     <div class="page-eyebrow">${new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'})}</div>
     <div class="page-title">Today's standard</div>
     <div class="page-sub voice">Results come from consistency, not customization.</div>
-    ${todayFocusHtml}
+    ${todayRowHtml}
 
+    ${todayFocusHtml}
     ${carryHtml}
     <div id="patternSlot"></div>
     <div class="stat-row">
       <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value"><span class="cu" data-to="${streak}">${streak}</span> <small>day${streak===1?'':'s'}</small></div></div>
       <div class="stat-card"><div class="stat-label">This week</div><div class="stat-value">${weekCount} <small>/ 7 logged</small></div></div>
-      <div class="stat-card"><div class="stat-label">Total entries</div><div class="stat-value">${totalLogged}</div></div>
     </div>
 
-    ${todayRowHtml}
-
-    <div class="today-row">
-      <div class="flow-card" onclick="currentView='weekly';render();">
-        <div class="flow-card-top">
-          <div class="flow-card-title">Weekly review</div>
-          <div class="flow-status ${isWeeklyUnlocked(wm)?'done':'pending'}">${isWeeklyUnlocked(wm)?'Unlocked':weekCount+'/5'}</div>
-        </div>
-        <div class="flow-card-desc">Zoom out once you've logged 5 days this week.</div>
-      </div>
-      <div class="flow-card" onclick="currentView='monthly';render();">
-        <div class="flow-card-top">
-          <div class="flow-card-title">Monthly review</div>
-          <div class="flow-status ${isMonthlyUnlocked(mk)?'done':'pending'}">${isMonthlyUnlocked(mk)?'Unlocked':monthCount+'/4'}</div>
-        </div>
-        <div class="flow-card-desc">Zoom out across the month once you've logged 4 weeks.</div>
-      </div>
+    <div class="slim-list">
+      <div class="slim-row" onclick="currentView='weekly';render();"><span>Weekly review</span><span class="flow-status ${isWeeklyUnlocked(wm)?'done':'pending'}">${isWeeklyUnlocked(wm)?'Unlocked':weekCount+'/5'}</span></div>
+      <div class="slim-row" onclick="currentView='monthly';render();"><span>Monthly review</span><span class="flow-status ${isMonthlyUnlocked(mk)?'done':'pending'}">${isMonthlyUnlocked(mk)?'Unlocked':monthCount+'/4'}</span></div>
     </div>
     ${howToHtml}
     ${installNudgeHtml()}
@@ -1124,7 +1113,7 @@ function motionPolish(root){
     setTimeout(()=>requestAnimationFrame(tick), 350);
   });
   // Scroll reveal for rows below the fold. Safety timer guarantees nothing stays hidden.
-  const rows = Array.from(root.querySelectorAll('.today-row')).slice(1);
+  const rows = Array.from(root.querySelectorAll('.slim-list'));
   if(!rows.length || !('IntersectionObserver' in window)) return;
   rows.forEach(r=>r.classList.add('reveal'));
   const io = new IntersectionObserver((entries)=>{
@@ -1145,6 +1134,8 @@ function showPatternBox(text){
 }
 async function loadPattern(){
   const iso = todayISO();
+  // Shown after a check-in, so the first screen stays about the check-in itself (and no AI call is made before then).
+  if(!(checkinsData['morning:'+iso] || checkinsData['evening:'+iso])) return;
   const ck = 'mcos_pattern:' + (currentUser?.id || 'anon') + ':' + iso;
   try{
     const cached = localStorage.getItem(ck);
